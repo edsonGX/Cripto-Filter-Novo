@@ -4,37 +4,88 @@ import pandas as pd
 
 st.set_page_config(
     page_title="Crypto Filter Pro",
+    page_icon="📊",
     layout="wide"
 )
 
-st.title("Crypto Filter Pro")
-st.write("Filtro de criptomoedas com exclusão automática de memecoins.")
+st.markdown(
+    """
+    <style>
+    .main-title {
+        font-size: 42px;
+        font-weight: 800;
+        margin-bottom: 0px;
+    }
 
-st.warning(
-    "Este app é apenas uma ferramenta de filtragem e estudo. "
-    "Ele não é recomendação de investimento."
+    .subtitle {
+        font-size: 18px;
+        color: #B0B0B0;
+        margin-bottom: 25px;
+    }
+
+    .info-box {
+        background-color: rgba(255, 193, 7, 0.12);
+        border-left: 5px solid #FFC107;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        font-size: 15px;
+    }
+
+    .section-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin-top: 25px;
+        margin-bottom: 10px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
 )
 
-market_cap_min = st.number_input(
-    "Market cap mínimo em dólar",
-    min_value=0,
-    value=100_000_000,
-    step=10_000_000
+st.markdown('<div class="main-title">📊 Crypto Filter Pro</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="subtitle">Filtro inteligente de criptomoedas com exclusão automática de memecoins.</div>',
+    unsafe_allow_html=True
 )
 
-volume_min = st.number_input(
-    "Volume mínimo de 24h em dólar",
-    min_value=0,
-    value=10_000_000,
-    step=1_000_000
+st.markdown(
+    """
+    <div class="info-box">
+    Este app é apenas uma ferramenta de filtragem e estudo. 
+    Ele não é recomendação de investimento.
+    </div>
+    """,
+    unsafe_allow_html=True
 )
 
-score_min = st.slider(
-    "Score mínimo",
-    min_value=0,
-    max_value=100,
-    value=0
-)
+st.markdown('<div class="section-title">Filtros principais</div>', unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    market_cap_min = st.number_input(
+        "Market cap mínimo",
+        min_value=0,
+        value=100_000_000,
+        step=10_000_000
+    )
+
+with col2:
+    volume_min = st.number_input(
+        "Volume 24h mínimo",
+        min_value=0,
+        value=10_000_000,
+        step=1_000_000
+    )
+
+with col3:
+    score_min = st.slider(
+        "Score mínimo",
+        min_value=0,
+        max_value=100,
+        value=0
+    )
 
 meme_terms = [
     "doge", "shib", "pepe", "inu", "floki", "bonk",
@@ -75,7 +126,21 @@ def parece_memecoin(nome, simbolo):
     return False
 
 
-if st.button("Filtrar criptomoedas"):
+def formatar_dolar(valor):
+    try:
+        return f"US$ {valor:,.2f}"
+    except:
+        return valor
+
+
+def formatar_numero(valor):
+    try:
+        return f"US$ {valor:,.0f}"
+    except:
+        return valor
+
+
+if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
     data, erro, detalhe = buscar_criptos()
 
     if erro:
@@ -100,7 +165,7 @@ if st.button("Filtrar criptomoedas"):
                     "Ranking": item.get("rank"),
                     "Moeda": nome,
                     "Símbolo": simbolo,
-                    "Preço em dólar": preco,
+                    "Preço": preco,
                     "Market cap": market_cap,
                     "Volume 24h": volume_24h,
                     "Variação 24h %": variacao_24h,
@@ -112,10 +177,12 @@ if st.button("Filtrar criptomoedas"):
 
         df["Market cap"] = pd.to_numeric(df["Market cap"], errors="coerce")
         df["Volume 24h"] = pd.to_numeric(df["Volume 24h"], errors="coerce")
-        df["Preço em dólar"] = pd.to_numeric(df["Preço em dólar"], errors="coerce")
+        df["Preço"] = pd.to_numeric(df["Preço"], errors="coerce")
         df["Variação 24h %"] = pd.to_numeric(df["Variação 24h %"], errors="coerce")
 
         df = df.dropna(subset=["Market cap", "Volume 24h"])
+
+        total_analisadas = len(df)
 
         df = df[
             (df["Market cap"] >= market_cap_min) &
@@ -133,25 +200,45 @@ if st.button("Filtrar criptomoedas"):
             ).round(2)
 
             df = df[df["Score"] >= score_min]
-
             df = df.sort_values(by="Score", ascending=False)
+
+            total_filtradas = len(df)
+            melhor_score = df["Score"].max()
+            melhor_moeda = df.iloc[0]["Moeda"]
+
+            st.markdown('<div class="section-title">Resumo do filtro</div>', unsafe_allow_html=True)
+
+            m1, m2, m3, m4 = st.columns(4)
+
+            m1.metric("Moedas analisadas", total_analisadas)
+            m2.metric("Moedas aprovadas", total_filtradas)
+            m3.metric("Melhor score", melhor_score)
+            m4.metric("Melhor moeda", melhor_moeda)
+
+            st.markdown('<div class="section-title">Resultado</div>', unsafe_allow_html=True)
 
             df_final = df[
                 [
                     "Ranking",
                     "Moeda",
                     "Símbolo",
-                    "Preço em dólar",
+                    "Preço",
                     "Market cap",
                     "Volume 24h",
                     "Variação 24h %",
                     "Score"
                 ]
-            ]
+            ].copy()
 
-            st.success(f"{len(df_final)} moedas encontradas.")
+            df_final["Preço"] = df_final["Preço"].apply(formatar_dolar)
+            df_final["Market cap"] = df_final["Market cap"].apply(formatar_numero)
+            df_final["Volume 24h"] = df_final["Volume 24h"].apply(formatar_numero)
+            df_final["Variação 24h %"] = df_final["Variação 24h %"].round(2)
+
+            df_final = df_final.reset_index(drop=True)
 
             st.dataframe(
                 df_final,
-                use_container_width=True
+                use_container_width=True,
+                hide_index=True
             )
