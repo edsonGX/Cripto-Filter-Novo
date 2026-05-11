@@ -44,6 +44,7 @@ st.markdown(
 )
 
 st.markdown('<div class="main-title">📊 Crypto Filter Pro</div>', unsafe_allow_html=True)
+
 st.markdown(
     '<div class="subtitle">Filtro inteligente de criptomoedas com exclusão automática de memecoins.</div>',
     unsafe_allow_html=True
@@ -161,14 +162,14 @@ def parece_memecoin(nome, simbolo):
 def formatar_dolar(valor):
     try:
         return f"US$ {valor:,.2f}"
-    except:
+    except Exception:
         return valor
 
 
 def formatar_numero(valor):
     try:
         return f"US$ {valor:,.0f}"
-    except:
+    except Exception:
         return valor
 
 
@@ -178,6 +179,7 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
     if erro:
         st.error(erro)
         st.code(detalhe)
+
     else:
         moedas = []
 
@@ -207,26 +209,28 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
 
         df = pd.DataFrame(moedas)
 
+        df["Ranking"] = pd.to_numeric(df["Ranking"], errors="coerce")
         df["Market cap"] = pd.to_numeric(df["Market cap"], errors="coerce")
         df["Volume 24h"] = pd.to_numeric(df["Volume 24h"], errors="coerce")
         df["Preço"] = pd.to_numeric(df["Preço"], errors="coerce")
         df["Variação 24h %"] = pd.to_numeric(df["Variação 24h %"], errors="coerce")
 
-        df = df.dropna(subset=["Market cap", "Volume 24h"])
+        df = df.dropna(subset=["Ranking", "Market cap", "Volume 24h"])
 
         total_analisadas = len(df)
 
-df = df[
-    (df["Market cap"] >= market_cap_min) &
-    (df["Volume 24h"] >= volume_min) &
-    (df["Ranking"] <= ranking_max) &
-    (df["Variação 24h %"] >= variacao_min) &
-    (df["Variação 24h %"] <= variacao_max) &
-    (df["Memecoin"] == False)
-]        
+        df = df[
+            (df["Market cap"] >= market_cap_min) &
+            (df["Volume 24h"] >= volume_min) &
+            (df["Ranking"] <= ranking_max) &
+            (df["Variação 24h %"] >= variacao_min) &
+            (df["Variação 24h %"] <= variacao_max) &
+            (df["Memecoin"] == False)
+        ]
 
         if df.empty:
             st.warning("Nenhuma moeda passou nos filtros escolhidos.")
+
         else:
             df["Score"] = (
                 (df["Market cap"].rank(pct=True) * 45) +
@@ -238,43 +242,47 @@ df = df[
             df = df.sort_values(by="Score", ascending=False)
             df = df.head(limite_resultados)
 
-            total_filtradas = len(df)
-            melhor_score = df["Score"].max()
-            melhor_moeda = df.iloc[0]["Moeda"]
+            if df.empty:
+                st.warning("Nenhuma moeda passou no score mínimo escolhido.")
 
-            st.markdown('<div class="section-title">Resumo do filtro</div>', unsafe_allow_html=True)
+            else:
+                total_filtradas = len(df)
+                melhor_score = df["Score"].max()
+                melhor_moeda = df.iloc[0]["Moeda"]
 
-            m1, m2, m3, m4 = st.columns(4)
+                st.markdown('<div class="section-title">Resumo do filtro</div>', unsafe_allow_html=True)
 
-            m1.metric("Moedas analisadas", total_analisadas)
-            m2.metric("Moedas aprovadas", total_filtradas)
-            m3.metric("Melhor score", melhor_score)
-            m4.metric("Melhor moeda", melhor_moeda)
+                m1, m2, m3, m4 = st.columns(4)
 
-            st.markdown('<div class="section-title">Resultado</div>', unsafe_allow_html=True)
+                m1.metric("Moedas analisadas", total_analisadas)
+                m2.metric("Moedas aprovadas", total_filtradas)
+                m3.metric("Melhor score", melhor_score)
+                m4.metric("Melhor moeda", melhor_moeda)
 
-            df_final = df[
-                [
-                    "Ranking",
-                    "Moeda",
-                    "Símbolo",
-                    "Preço",
-                    "Market cap",
-                    "Volume 24h",
-                    "Variação 24h %",
-                    "Score"
-                ]
-            ].copy()
+                st.markdown('<div class="section-title">Resultado</div>', unsafe_allow_html=True)
 
-            df_final["Preço"] = df_final["Preço"].apply(formatar_dolar)
-            df_final["Market cap"] = df_final["Market cap"].apply(formatar_numero)
-            df_final["Volume 24h"] = df_final["Volume 24h"].apply(formatar_numero)
-            df_final["Variação 24h %"] = df_final["Variação 24h %"].round(2)
+                df_final = df[
+                    [
+                        "Ranking",
+                        "Moeda",
+                        "Símbolo",
+                        "Preço",
+                        "Market cap",
+                        "Volume 24h",
+                        "Variação 24h %",
+                        "Score"
+                    ]
+                ].copy()
 
-            df_final = df_final.reset_index(drop=True)
+                df_final["Preço"] = df_final["Preço"].apply(formatar_dolar)
+                df_final["Market cap"] = df_final["Market cap"].apply(formatar_numero)
+                df_final["Volume 24h"] = df_final["Volume 24h"].apply(formatar_numero)
+                df_final["Variação 24h %"] = df_final["Variação 24h %"].round(2)
 
-            st.dataframe(
-                df_final,
-                use_container_width=True,
-                hide_index=True
-            )
+                df_final = df_final.reset_index(drop=True)
+
+                st.dataframe(
+                    df_final,
+                    use_container_width=True,
+                    hide_index=True
+                )
