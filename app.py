@@ -153,7 +153,7 @@ with col6:
         value=score_padrao
     )
 
-st.markdown('<div class="section-title">Busca e organização</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Busca, risco e organização</div>', unsafe_allow_html=True)
 
 col7, col8, col9 = st.columns(3)
 
@@ -184,7 +184,7 @@ with col9:
         ]
     )
 
-col10, col11 = st.columns(2)
+col10, col11, col12 = st.columns(3)
 
 with col10:
     filtro_classificacao = st.selectbox(
@@ -199,6 +199,18 @@ with col10:
     )
 
 with col11:
+    filtro_risco = st.selectbox(
+        "Filtrar por nível de risco",
+        [
+            "Todos",
+            "Baixo",
+            "Moderado",
+            "Médio",
+            "Alto"
+        ]
+    )
+
+with col12:
     remover_stablecoins = st.checkbox(
         "Remover stablecoins",
         value=True
@@ -465,6 +477,9 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
             if filtro_classificacao != "Todas":
                 df = df[df["Classificação"] == filtro_classificacao]
 
+            if filtro_risco != "Todos":
+                df = df[df["Nível de risco"] == filtro_risco]
+
             if df.empty:
                 st.warning("Nenhuma moeda passou nos filtros escolhidos.")
 
@@ -488,6 +503,7 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 fracas = len(df[df["Classificação"] == "Fraca"])
 
                 risco_baixo = len(df[df["Nível de risco"] == "Baixo"])
+                risco_moderado = len(df[df["Nível de risco"] == "Moderado"])
                 risco_medio = len(df[df["Nível de risco"] == "Médio"])
                 risco_alto = len(df[df["Nível de risco"] == "Alto"])
 
@@ -506,10 +522,11 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 m7.metric("Médias", medias)
                 m8.metric("Fracas", fracas)
 
-                r1, r2, r3 = st.columns(3)
+                r1, r2, r3, r4 = st.columns(4)
                 r1.metric("Risco baixo", risco_baixo)
-                r2.metric("Risco médio", risco_medio)
-                r3.metric("Risco alto", risco_alto)
+                r2.metric("Risco moderado", risco_moderado)
+                r3.metric("Risco médio", risco_medio)
+                r4.metric("Risco alto", risco_alto)
 
                 st.markdown('<div class="section-title">Gráfico de score</div>', unsafe_allow_html=True)
 
