@@ -60,6 +60,47 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+st.markdown('<div class="section-title">Modo de perfil</div>', unsafe_allow_html=True)
+
+perfil = st.selectbox(
+    "Escolha o perfil do filtro",
+    [
+        "Conservador",
+        "Moderado",
+        "Agressivo",
+        "Personalizado"
+    ]
+)
+
+if perfil == "Conservador":
+    market_cap_padrao = 1_000_000_000
+    volume_padrao = 100_000_000
+    ranking_padrao = 100
+    variacao_min_padrao = -10.0
+    variacao_max_padrao = 15.0
+    score_padrao = 70
+elif perfil == "Moderado":
+    market_cap_padrao = 300_000_000
+    volume_padrao = 30_000_000
+    ranking_padrao = 200
+    variacao_min_padrao = -20.0
+    variacao_max_padrao = 30.0
+    score_padrao = 50
+elif perfil == "Agressivo":
+    market_cap_padrao = 50_000_000
+    volume_padrao = 5_000_000
+    ranking_padrao = 500
+    variacao_min_padrao = -40.0
+    variacao_max_padrao = 80.0
+    score_padrao = 30
+else:
+    market_cap_padrao = 100_000_000
+    volume_padrao = 10_000_000
+    ranking_padrao = 250
+    variacao_min_padrao = -100.0
+    variacao_max_padrao = 100.0
+    score_padrao = 0
+
 st.markdown('<div class="section-title">Filtros principais</div>', unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
@@ -68,7 +109,7 @@ with col1:
     market_cap_min = st.number_input(
         "Market cap mínimo",
         min_value=0,
-        value=100_000_000,
+        value=market_cap_padrao,
         step=10_000_000
     )
 
@@ -76,7 +117,7 @@ with col2:
     volume_min = st.number_input(
         "Volume 24h mínimo",
         min_value=0,
-        value=10_000_000,
+        value=volume_padrao,
         step=1_000_000
     )
 
@@ -84,7 +125,7 @@ with col3:
     ranking_max = st.number_input(
         "Ranking máximo",
         min_value=1,
-        value=250,
+        value=ranking_padrao,
         step=10
     )
 
@@ -93,14 +134,14 @@ col4, col5, col6 = st.columns(3)
 with col4:
     variacao_min = st.number_input(
         "Variação 24h mínima %",
-        value=-100.0,
+        value=variacao_min_padrao,
         step=1.0
     )
 
 with col5:
     variacao_max = st.number_input(
         "Variação 24h máxima %",
-        value=100.0,
+        value=variacao_max_padrao,
         step=1.0
     )
 
@@ -109,7 +150,7 @@ with col6:
         "Score mínimo",
         min_value=0,
         max_value=100,
-        value=0
+        value=score_padrao
     )
 
 st.markdown('<div class="section-title">Busca e organização</div>', unsafe_allow_html=True)
