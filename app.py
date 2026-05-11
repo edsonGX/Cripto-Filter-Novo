@@ -112,6 +112,37 @@ with col6:
         value=0
     )
 
+st.markdown('<div class="section-title">Busca e organização</div>', unsafe_allow_html=True)
+
+col7, col8, col9 = st.columns(3)
+
+with col7:
+    busca = st.text_input(
+        "Buscar moeda ou símbolo",
+        placeholder="Ex: BTC, SOL, Ethereum..."
+    )
+
+with col8:
+    ordenar_por = st.selectbox(
+        "Ordenar por",
+        [
+            "Score",
+            "Ranking",
+            "Market cap",
+            "Volume 24h",
+            "Variação 24h %"
+        ]
+    )
+
+with col9:
+    ordem = st.selectbox(
+        "Ordem",
+        [
+            "Maior para menor",
+            "Menor para maior"
+        ]
+    )
+
 limite_resultados = st.slider(
     "Quantidade máxima de resultados",
     min_value=10,
@@ -242,6 +273,14 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
         if remover_stablecoins:
             df = df[~df["Símbolo"].isin(stablecoins)]
 
+        if busca.strip() != "":
+            busca_normalizada = busca.strip().lower()
+
+            df = df[
+                df["Moeda"].str.lower().str.contains(busca_normalizada, na=False) |
+                df["Símbolo"].str.lower().str.contains(busca_normalizada, na=False)
+            ]
+
         if df.empty:
             st.warning("Nenhuma moeda passou nos filtros escolhidos.")
 
@@ -253,16 +292,23 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
             ).round(2)
 
             df = df[df["Score"] >= score_min]
-            df = df.sort_values(by="Score", ascending=False)
-            df = df.head(limite_resultados)
 
             if df.empty:
                 st.warning("Nenhuma moeda passou no score mínimo escolhido.")
 
             else:
+                ascendente = True if ordem == "Menor para maior" else False
+
+                df = df.sort_values(
+                    by=ordenar_por,
+                    ascending=ascendente
+                )
+
+                df = df.head(limite_resultados)
+
                 total_filtradas = len(df)
                 melhor_score = df["Score"].max()
-                melhor_moeda = df.iloc[0]["Moeda"]
+                melhor_moeda = df.sort_values(by="Score", ascending=False).iloc[0]["Moeda"]
 
                 st.markdown('<div class="section-title">Resumo do filtro</div>', unsafe_allow_html=True)
 
