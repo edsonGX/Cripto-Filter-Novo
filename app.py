@@ -143,17 +143,32 @@ with col9:
         ]
     )
 
+col10, col11 = st.columns(2)
+
+with col10:
+    filtro_classificacao = st.selectbox(
+        "Filtrar por classificação",
+        [
+            "Todas",
+            "Excelente",
+            "Boa",
+            "Média",
+            "Fraca"
+        ]
+    )
+
+with col11:
+    remover_stablecoins = st.checkbox(
+        "Remover stablecoins",
+        value=True
+    )
+
 limite_resultados = st.slider(
     "Quantidade máxima de resultados",
     min_value=10,
     max_value=200,
     value=50,
     step=10
-)
-
-remover_stablecoins = st.checkbox(
-    "Remover stablecoins",
-    value=True
 )
 
 meme_terms = [
@@ -352,8 +367,11 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
 
             df = df[df["Score"] >= score_min]
 
+            if filtro_classificacao != "Todas":
+                df = df[df["Classificação"] == filtro_classificacao]
+
             if df.empty:
-                st.warning("Nenhuma moeda passou no score mínimo escolhido.")
+                st.warning("Nenhuma moeda passou nos filtros escolhidos.")
 
             else:
                 ascendente = True if ordem == "Menor para maior" else False
@@ -371,6 +389,8 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
 
                 excelentes = len(df[df["Classificação"] == "Excelente"])
                 boas = len(df[df["Classificação"] == "Boa"])
+                medias = len(df[df["Classificação"] == "Média"])
+                fracas = len(df[df["Classificação"] == "Fraca"])
 
                 st.markdown('<div class="section-title">Resumo do filtro</div>', unsafe_allow_html=True)
 
@@ -381,9 +401,11 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 m3.metric("Melhor score", melhor_score)
                 m4.metric("Melhor moeda", melhor_moeda)
 
-                m5, m6 = st.columns(2)
-                m5.metric("Classificação excelente", excelentes)
-                m6.metric("Classificação boa", boas)
+                m5, m6, m7, m8 = st.columns(4)
+                m5.metric("Excelentes", excelentes)
+                m6.metric("Boas", boas)
+                m7.metric("Médias", medias)
+                m8.metric("Fracas", fracas)
 
                 st.markdown('<div class="section-title">Resultado</div>', unsafe_allow_html=True)
 
