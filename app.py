@@ -5,7 +5,6 @@ from datetime import datetime
 import streamlit as st
 import requests
 import pandas as pd
-
 st.set_page_config(
     page_title="Crypto Filter Pro",
     page_icon="📊",
@@ -15,47 +14,179 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .main-title {
-        font-size: 42px;
-        font-weight: 800;
-        margin-bottom: 0px;
-    }
+        .stApp {
+            background:
+                radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 28%),
+                radial-gradient(circle at top right, rgba(250, 204, 21, 0.06), transparent 24%),
+                #0b0f17;
+        }
 
-    .subtitle {
-        font-size: 18px;
-        color: #B0B0B0;
-        margin-bottom: 25px;
-    }
+        section[data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #171923 0%, #111827 100%);
+            border-right: 1px solid rgba(255,255,255,0.08);
+        }
 
-    .info-box {
-        background-color: rgba(255, 193, 7, 0.12);
-        border-left: 5px solid #FFC107;
-        padding: 16px;
-        border-radius: 8px;
-        margin-bottom: 25px;
-        font-size: 15px;
-    }
+        section[data-testid="stSidebar"] h1,
+        section[data-testid="stSidebar"] h2,
+        section[data-testid="stSidebar"] h3 {
+            color: #ffffff;
+        }
 
-    .section-title {
-        font-size: 24px;
-        font-weight: 700;
-        margin-top: 25px;
-        margin-bottom: 10px;
-    }
+        .main-title {
+            font-size: 46px;
+            line-height: 1.05;
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            margin-bottom: 8px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
 
-    .mini-card {
-        background-color: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.08);
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 12px;
-    }
+        .subtitle {
+            font-size: 18px;
+            color: #aab3c5;
+            margin-bottom: 28px;
+            max-width: 980px;
+        }
+
+        .info-box {
+            background: linear-gradient(90deg, rgba(250, 204, 21, 0.16), rgba(250, 204, 21, 0.05));
+            border: 1px solid rgba(250, 204, 21, 0.22);
+            border-left: 5px solid #facc15;
+            padding: 18px 20px;
+            border-radius: 14px;
+            margin-bottom: 26px;
+            font-size: 15px;
+            color: #f8fafc;
+            box-shadow: 0 10px 35px rgba(0,0,0,0.22);
+        }
+
+        .section-title {
+            font-size: 26px;
+            font-weight: 850;
+            margin-top: 30px;
+            margin-bottom: 16px;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+        }
+
+        .mini-card {
+            background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025));
+            border: 1px solid rgba(255,255,255,0.10);
+            padding: 20px;
+            border-radius: 18px;
+            margin-bottom: 14px;
+            box-shadow: 0 14px 35px rgba(0,0,0,0.22);
+        }
+
+        div[data-testid="stMetric"] {
+            background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025));
+            border: 1px solid rgba(255,255,255,0.09);
+            padding: 18px 18px;
+            border-radius: 18px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+        }
+
+        div[data-testid="stMetricLabel"] {
+            color: #aab3c5;
+            font-size: 14px;
+        }
+
+        div[data-testid="stMetricValue"] {
+            color: #ffffff;
+            font-weight: 800;
+        }
+
+        button[data-baseweb="tab"] {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px 12px 0 0;
+            padding: 10px 16px;
+            margin-right: 4px;
+            border: 1px solid rgba(255,255,255,0.06);
+            color: #dbeafe;
+        }
+
+        button[data-baseweb="tab"][aria-selected="true"] {
+            background: linear-gradient(90deg, rgba(59,130,246,0.18), rgba(244,63,94,0.12));
+            border-bottom: 2px solid #f43f5e;
+            color: #ffffff;
+        }
+
+        div.stButton > button,
+        div[data-testid="stDownloadButton"] > button {
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: linear-gradient(90deg, rgba(59,130,246,0.18), rgba(244,63,94,0.18));
+            color: #ffffff;
+            font-weight: 700;
+            padding: 0.65rem 1rem;
+            transition: 0.18s ease-in-out;
+        }
+
+        div.stButton > button:hover,
+        div[data-testid="stDownloadButton"] > button:hover {
+            transform: translateY(-1px);
+            border-color: rgba(255,255,255,0.28);
+            box-shadow: 0 10px 25px rgba(59,130,246,0.16);
+        }
+
+        div[data-baseweb="input"],
+        div[data-baseweb="select"],
+        div[data-baseweb="textarea"] {
+            border-radius: 14px;
+        }
+
+        input,
+        textarea {
+            border-radius: 14px !important;
+        }
+
+        div[data-testid="stDataFrame"] {
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 14px 35px rgba(0,0,0,0.20);
+        }
+
+        div[data-testid="stAlert"] {
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .block-container {
+            padding-top: 4rem;
+            padding-bottom: 4rem;
+            max-width: 1500px;
+        }
+
+        hr {
+            border-color: rgba(255,255,255,0.08);
+        }
+
+        @media (max-width: 900px) {
+            .main-title {
+                font-size: 34px;
+            }
+
+            .subtitle {
+                font-size: 16px;
+            }
+
+            .section-title {
+                font-size: 22px;
+            }
+        }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-st.markdown('<div class="main-title">📊 Crypto Filter Pro</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="main-title">📊 Crypto Filter Pro</div>',
+    unsafe_allow_html=True
+)
 
 st.markdown(
     '<div class="subtitle">Scanner de criptomoedas com Supabase, score avançado, risco, tendência, watchlist, histórico e monitoramento.</div>',
@@ -70,7 +201,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
 
 meme_terms = [
     "doge", "shib", "pepe", "inu", "floki", "bonk",
