@@ -46,7 +46,7 @@ st.markdown(
 st.markdown('<div class="main-title">📊 Crypto Filter Pro</div>', unsafe_allow_html=True)
 
 st.markdown(
-    '<div class="subtitle">Filtro inteligente de criptomoedas com exclusão automática de memecoins.</div>',
+    '<div class="subtitle">Filtro inteligente de criptomoedas com exclusão automática de memecoins e stablecoins.</div>',
     unsafe_allow_html=True
 )
 
@@ -120,10 +120,21 @@ limite_resultados = st.slider(
     step=10
 )
 
+remover_stablecoins = st.checkbox(
+    "Remover stablecoins",
+    value=True
+)
+
 meme_terms = [
     "doge", "shib", "pepe", "inu", "floki", "bonk",
     "meme", "cat", "dog", "baby", "elon", "trump",
     "maga", "wojak", "moon", "safe", "frog", "pump"
+]
+
+stablecoins = [
+    "USDT", "USDC", "DAI", "FDUSD", "TUSD", "USDD",
+    "USDE", "PYUSD", "BUSD", "GUSD", "LUSD", "FRAX",
+    "USDP", "EURS", "SUSD", "USD0", "RLUSD"
 ]
 
 
@@ -227,6 +238,9 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
             (df["Variação 24h %"] <= variacao_max) &
             (df["Memecoin"] == False)
         ]
+
+        if remover_stablecoins:
+            df = df[~df["Símbolo"].isin(stablecoins)]
 
         if df.empty:
             st.warning("Nenhuma moeda passou nos filtros escolhidos.")
