@@ -1,13 +1,18 @@
+import os
+from io import BytesIO
+from datetime import datetime
+
 import streamlit as st
 import requests
 import pandas as pd
-from io import BytesIO
 
 st.set_page_config(
     page_title="Crypto Filter Pro",
     page_icon="📊",
     layout="wide"
 )
+
+WATCHLIST_FILE = "watchlist.csv"
 
 st.markdown(
     """
@@ -54,7 +59,7 @@ st.markdown(
 
 st.markdown('<div class="main-title">📊 Crypto Filter Pro</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="subtitle">Scanner de criptomoedas com filtros, score avançado, risco, tendência, comparador e exportação.</div>',
+    '<div class="subtitle">Scanner de criptomoedas com score avançado, risco, tendência, comparador, Excel e watchlist.</div>',
     unsafe_allow_html=True
 )
 
@@ -214,6 +219,7 @@ def nivel_risco(row):
         return "Alto"
     elif quantidade_alertas >= 2:
         return "Médio"
+
     return "Moderado"
 
 
@@ -372,7 +378,7 @@ def formatar_numero(valor):
         return valor
 
 
-def exportar_excel(df_final, df_top, df_risco_alto, df_tendencia_alta):
+def exportar_excel(df_final, df_top, df_risco_alto, df_tendencia_alta, df_watchlist):
     output = BytesIO()
 
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -381,7 +387,89 @@ def exportar_excel(df_final, df_top, df_risco_alto, df_tendencia_alta):
         df_risco_alto.to_excel(writer, index=False, sheet_name="Risco alto")
         df_tendencia_alta.to_excel(writer, index=False, sheet_name="Tendência alta")
 
+        if not df_watchlist.empty:
+            df_watchlist.to_excel(writer, index=False, sheet_name="Watchlist")
+
     return output.getvalue()
+
+
+def carregar_watchlist():
+    colunas = [
+        "Data adicionada",
+        "Ranking interno",
+        "Ranking",
+        "Moeda",
+        "Símbolo",
+        "Preço",
+        "Market cap",
+        "Volume 24h",
+        "Variação 24h %",
+        "Variação 7d %",
+        "Variação 30d %",
+        "Score",
+        "Classificação",
+        "Tendência",
+        "Nível de risco",
+        "Selo de qualidade",
+        "Alertas de risco",
+        "Motivo",
+        "Resumo final"
+    ]
+
+    if os.path.exists(WATCHLIST_FILE):
+        try:
+            return pd.read_csv(WATCHLIST_FILE)
+        except Exception:
+            return pd.DataFrame(columns=colunas)
+
+    return pd.DataFrame(columns=colunas)
+
+
+def salvar_watchlist(df_watchlist):
+    df_watchlist.to_csv(WATCHLIST_FILE, index=False, encoding="utf-8-sig")
+
+
+def preparar_df_final(df):
+    df_final = df[
+        [
+            "Ranking interno",
+            "Ranking",
+            "Moeda",
+            "Símbolo",
+            "Preço",
+            "Market cap",
+            "Volume 24h",
+            "Variação 24h %",
+            "Variação 7d %",
+            "Variação 30d %",
+            "Score",
+            "Classificação",
+            "Tendência",
+            "Nível de risco",
+            "Selo de qualidade",
+            "Alertas de risco",
+            "Motivo",
+            "Resumo final"
+        ]
+    ].copy()
+
+    return df_final
+
+
+def formatar_df_visual(df_final):
+    df_visual = df_final.copy()
+
+    if df_visual.empty:
+        return df_visual
+
+    df_visual["Preço"] = df_visual["Preço"].apply(formatar_dolar)
+    df_visual["Market cap"] = df_visual["Market cap"].apply(formatar_numero)
+    df_visual["Volume 24h"] = df_visual["Volume 24h"].apply(formatar_numero)
+    df_visual["Variação 24h %"] = pd.to_numeric(df_visual["Variação 24h %"], errors="coerce").round(2)
+    df_visual["Variação 7d %"] = pd.to_numeric(df_visual["Variação 7d %"], errors="coerce").round(2)
+    df_visual["Variação 30d %"] = pd.to_numeric(df_visual["Variação 30d %"], errors="coerce").round(2)
+
+    return df_visual.reset_index(drop=True)
 
 
 with st.sidebar:
@@ -531,6 +619,13 @@ with st.sidebar:
     filtrar = st.button("🔎 Filtrar criptomoedas", use_container_width=True)
 
 
+if "df_resultado" not in st.session_state:
+    st.session_state["df_resultado"] = pd.DataFrame()
+
+if "total_analisadas" not in st.session_state:
+    st.session_state["total_analisadas"] = 0
+
+
 if filtrar:
     data, erro, detalhe = buscar_criptos()
 
@@ -614,10 +709,7 @@ if filtrar:
                 df["Símbolo"].str.lower().str.contains(busca_normalizada, na=False)
             ]
 
-        if df.empty:
-            st.warning("Nenhuma moeda passou nos filtros escolhidos.")
-
-        else:
+        if not df.empty:
             df["Tendência"] = df.apply(
                 lambda row: classificar_tendencia(
                     row["Variação 24h %"],
@@ -655,10 +747,7 @@ if filtrar:
                     (df["Volume 24h"] >= 30_000_000)
                 ]
 
-            if df.empty:
-                st.warning("Nenhuma moeda passou nos filtros escolhidos.")
-
-            else:
+            if not df.empty:
                 df = df.sort_values(by="Score", ascending=False)
                 df["Ranking interno"] = range(1, len(df) + 1)
 
@@ -671,192 +760,244 @@ if filtrar:
 
                 df = df.head(limite_resultados)
 
-                total_filtradas = len(df)
-                melhor_score = df["Score"].max()
-                melhor_moeda = df.sort_values(by="Score", ascending=False).iloc[0]["Moeda"]
+        st.session_state["df_resultado"] = df
+        st.session_state["total_analisadas"] = total_analisadas
 
-                excelentes = len(df[df["Classificação"] == "Excelente"])
-                boas = len(df[df["Classificação"] == "Boa"])
-                medias = len(df[df["Classificação"] == "Média"])
-                fracas = len(df[df["Classificação"] == "Fraca"])
 
-                risco_baixo = len(df[df["Nível de risco"] == "Baixo"])
-                risco_moderado = len(df[df["Nível de risco"] == "Moderado"])
-                risco_medio = len(df[df["Nível de risco"] == "Médio"])
-                risco_alto = len(df[df["Nível de risco"] == "Alto"])
+df = st.session_state["df_resultado"]
+total_analisadas = st.session_state["total_analisadas"]
 
-                tendencia_alta = len(df[df["Tendência"] == "Alta"])
-                tendencia_neutra = len(df[df["Tendência"] == "Neutra"])
-                tendencia_baixa = len(df[df["Tendência"] == "Baixa"])
-                tendencia_instavel = len(df[df["Tendência"] == "Instável"])
-
-                st.markdown('<div class="section-title">Resumo do filtro</div>', unsafe_allow_html=True)
-
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Moedas analisadas", total_analisadas)
-                m2.metric("Moedas aprovadas", total_filtradas)
-                m3.metric("Melhor score", melhor_score)
-                m4.metric("Melhor moeda", melhor_moeda)
-
-                m5, m6, m7, m8 = st.columns(4)
-                m5.metric("Excelentes", excelentes)
-                m6.metric("Boas", boas)
-                m7.metric("Médias", medias)
-                m8.metric("Fracas", fracas)
-
-                r1, r2, r3, r4 = st.columns(4)
-                r1.metric("Risco baixo", risco_baixo)
-                r2.metric("Risco moderado", risco_moderado)
-                r3.metric("Risco médio", risco_medio)
-                r4.metric("Risco alto", risco_alto)
-
-                t1, t2, t3, t4 = st.columns(4)
-                t1.metric("Tendência alta", tendencia_alta)
-                t2.metric("Tendência neutra", tendencia_neutra)
-                t3.metric("Tendência baixa", tendencia_baixa)
-                t4.metric("Tendência instável", tendencia_instavel)
-
-                st.markdown('<div class="section-title">Gráfico visual</div>', unsafe_allow_html=True)
-
-                df_grafico = df.sort_values(by=tipo_grafico, ascending=False).head(10)
-                df_grafico = df_grafico.set_index("Símbolo")
-                st.bar_chart(df_grafico[tipo_grafico])
-
-                st.markdown('<div class="section-title">Análise individual</div>', unsafe_allow_html=True)
-
-                moeda_escolhida = st.selectbox(
-                    "Escolha uma moeda para análise rápida",
-                    df["Moeda"].tolist()
-                )
-
-                linha = df[df["Moeda"] == moeda_escolhida].iloc[0]
-
-                a1, a2, a3, a4 = st.columns(4)
-                a1.metric("Ranking interno", int(linha["Ranking interno"]))
-                a2.metric("Score", linha["Score"])
-                a3.metric("Risco", linha["Nível de risco"])
-                a4.metric("Tendência", linha["Tendência"])
-
-                st.markdown(
-                    f"""
-                    <div class="mini-card">
-                    <b>Selo de qualidade:</b> {linha["Selo de qualidade"]}<br>
-                    <b>Motivo:</b> {linha["Motivo"]}<br>
-                    <b>Alertas:</b> {linha["Alertas de risco"]}<br>
-                    <b>Resumo final:</b> {linha["Resumo final"]}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-                st.markdown('<div class="section-title">Comparador de moedas</div>', unsafe_allow_html=True)
-
-                moedas_comparar = st.multiselect(
-                    "Selecione até 4 moedas para comparar",
-                    df["Moeda"].tolist(),
-                    default=df.sort_values(by="Score", ascending=False)["Moeda"].head(2).tolist()
-                )
-
-                if len(moedas_comparar) > 0:
-                    df_comparacao = df[df["Moeda"].isin(moedas_comparar)][
-                        [
-                            "Moeda",
-                            "Símbolo",
-                            "Ranking interno",
-                            "Ranking",
-                            "Preço",
-                            "Market cap",
-                            "Volume 24h",
-                            "Variação 24h %",
-                            "Variação 7d %",
-                            "Variação 30d %",
-                            "Score",
-                            "Classificação",
-                            "Tendência",
-                            "Nível de risco",
-                            "Selo de qualidade"
-                        ]
-                    ].copy()
-
-                    st.dataframe(
-                        df_comparacao,
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
-                st.markdown('<div class="section-title">Resultado</div>', unsafe_allow_html=True)
-
-                df_final = df[
-                    [
-                        "Ranking interno",
-                        "Ranking",
-                        "Moeda",
-                        "Símbolo",
-                        "Preço",
-                        "Market cap",
-                        "Volume 24h",
-                        "Variação 24h %",
-                        "Variação 7d %",
-                        "Variação 30d %",
-                        "Score",
-                        "Classificação",
-                        "Tendência",
-                        "Nível de risco",
-                        "Selo de qualidade",
-                        "Alertas de risco",
-                        "Motivo",
-                        "Resumo final"
-                    ]
-                ].copy()
-
-                df_top = df_final[df_final["Selo de qualidade"].isin(["Alta qualidade", "Boa oportunidade"])].copy()
-                df_risco_alto = df_final[df_final["Nível de risco"] == "Alto"].copy()
-                df_tendencia_alta = df_final[df_final["Tendência"] == "Alta"].copy()
-
-                df_final_formatado = df_final.copy()
-                df_final_formatado["Preço"] = df_final_formatado["Preço"].apply(formatar_dolar)
-                df_final_formatado["Market cap"] = df_final_formatado["Market cap"].apply(formatar_numero)
-                df_final_formatado["Volume 24h"] = df_final_formatado["Volume 24h"].apply(formatar_numero)
-                df_final_formatado["Variação 24h %"] = df_final_formatado["Variação 24h %"].round(2)
-                df_final_formatado["Variação 7d %"] = df_final_formatado["Variação 7d %"].round(2)
-                df_final_formatado["Variação 30d %"] = df_final_formatado["Variação 30d %"].round(2)
-
-                df_final_formatado = df_final_formatado.reset_index(drop=True)
-
-                st.dataframe(
-                    df_final_formatado,
-                    use_container_width=True,
-                    hide_index=True
-                )
-
-                csv = df_final_formatado.to_csv(index=False).encode("utf-8-sig")
-
-                col_csv, col_excel = st.columns(2)
-
-                with col_csv:
-                    st.download_button(
-                        label="⬇️ Baixar resultado em CSV",
-                        data=csv,
-                        file_name="resultado_crypto_filter.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
-
-                with col_excel:
-                    excel = exportar_excel(
-                        df_final,
-                        df_top,
-                        df_risco_alto,
-                        df_tendencia_alta
-                    )
-
-                    st.download_button(
-                        label="⬇️ Baixar Excel com abas",
-                        data=excel,
-                        file_name="resultado_crypto_filter.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
-
-else:
+if df.empty:
     st.info("Use os filtros na barra lateral e clique em **Filtrar criptomoedas** para começar.")
+else:
+    total_filtradas = len(df)
+    melhor_score = df["Score"].max()
+    melhor_moeda = df.sort_values(by="Score", ascending=False).iloc[0]["Moeda"]
+
+    excelentes = len(df[df["Classificação"] == "Excelente"])
+    boas = len(df[df["Classificação"] == "Boa"])
+    medias = len(df[df["Classificação"] == "Média"])
+    fracas = len(df[df["Classificação"] == "Fraca"])
+
+    risco_baixo = len(df[df["Nível de risco"] == "Baixo"])
+    risco_moderado = len(df[df["Nível de risco"] == "Moderado"])
+    risco_medio = len(df[df["Nível de risco"] == "Médio"])
+    risco_alto = len(df[df["Nível de risco"] == "Alto"])
+
+    tendencia_alta = len(df[df["Tendência"] == "Alta"])
+    tendencia_neutra = len(df[df["Tendência"] == "Neutra"])
+    tendencia_baixa = len(df[df["Tendência"] == "Baixa"])
+    tendencia_instavel = len(df[df["Tendência"] == "Instável"])
+
+    st.markdown('<div class="section-title">Resumo do filtro</div>', unsafe_allow_html=True)
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Moedas analisadas", total_analisadas)
+    m2.metric("Moedas aprovadas", total_filtradas)
+    m3.metric("Melhor score", melhor_score)
+    m4.metric("Melhor moeda", melhor_moeda)
+
+    m5, m6, m7, m8 = st.columns(4)
+    m5.metric("Excelentes", excelentes)
+    m6.metric("Boas", boas)
+    m7.metric("Médias", medias)
+    m8.metric("Fracas", fracas)
+
+    r1, r2, r3, r4 = st.columns(4)
+    r1.metric("Risco baixo", risco_baixo)
+    r2.metric("Risco moderado", risco_moderado)
+    r3.metric("Risco médio", risco_medio)
+    r4.metric("Risco alto", risco_alto)
+
+    t1, t2, t3, t4 = st.columns(4)
+    t1.metric("Tendência alta", tendencia_alta)
+    t2.metric("Tendência neutra", tendencia_neutra)
+    t3.metric("Tendência baixa", tendencia_baixa)
+    t4.metric("Tendência instável", tendencia_instavel)
+
+    st.markdown('<div class="section-title">Gráfico visual</div>', unsafe_allow_html=True)
+
+    df_grafico = df.sort_values(by=tipo_grafico, ascending=False).head(10)
+    df_grafico = df_grafico.set_index("Símbolo")
+    st.bar_chart(df_grafico[tipo_grafico])
+
+    st.markdown('<div class="section-title">Análise individual</div>', unsafe_allow_html=True)
+
+    moeda_escolhida = st.selectbox(
+        "Escolha uma moeda para análise rápida",
+        df["Moeda"].tolist()
+    )
+
+    linha = df[df["Moeda"] == moeda_escolhida].iloc[0]
+
+    a1, a2, a3, a4 = st.columns(4)
+    a1.metric("Ranking interno", int(linha["Ranking interno"]))
+    a2.metric("Score", linha["Score"])
+    a3.metric("Risco", linha["Nível de risco"])
+    a4.metric("Tendência", linha["Tendência"])
+
+    st.markdown(
+        f"""
+        <div class="mini-card">
+        <b>Selo de qualidade:</b> {linha["Selo de qualidade"]}<br>
+        <b>Motivo:</b> {linha["Motivo"]}<br>
+        <b>Alertas:</b> {linha["Alertas de risco"]}<br>
+        <b>Resumo final:</b> {linha["Resumo final"]}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown('<div class="section-title">⭐ Watchlist</div>', unsafe_allow_html=True)
+
+    df_watchlist = carregar_watchlist()
+
+    moedas_watchlist = st.multiselect(
+        "Selecione moedas do resultado para salvar na watchlist",
+        df["Moeda"].tolist()
+    )
+
+    col_watch_1, col_watch_2 = st.columns(2)
+
+    with col_watch_1:
+        if st.button("⭐ Adicionar à watchlist", use_container_width=True):
+            if len(moedas_watchlist) == 0:
+                st.warning("Selecione pelo menos uma moeda.")
+            else:
+                df_selecionadas = df[df["Moeda"].isin(moedas_watchlist)].copy()
+                df_selecionadas = preparar_df_final(df_selecionadas)
+                df_selecionadas.insert(0, "Data adicionada", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+                df_watchlist = carregar_watchlist()
+
+                if not df_watchlist.empty:
+                    simbolos_existentes = set(df_watchlist["Símbolo"].astype(str).tolist())
+                    df_selecionadas = df_selecionadas[
+                        ~df_selecionadas["Símbolo"].astype(str).isin(simbolos_existentes)
+                    ]
+
+                if df_selecionadas.empty:
+                    st.info("Essas moedas já estão na watchlist.")
+                else:
+                    df_watchlist = pd.concat([df_watchlist, df_selecionadas], ignore_index=True)
+                    salvar_watchlist(df_watchlist)
+                    st.success("Moeda(s) adicionada(s) à watchlist.")
+
+    with col_watch_2:
+        if st.button("🗑️ Limpar watchlist", use_container_width=True):
+            salvar_watchlist(pd.DataFrame(columns=carregar_watchlist().columns))
+            st.success("Watchlist limpa.")
+
+    df_watchlist = carregar_watchlist()
+
+    if df_watchlist.empty:
+        st.info("Sua watchlist ainda está vazia.")
+    else:
+        remover_moedas = st.multiselect(
+            "Remover moedas da watchlist",
+            df_watchlist["Moeda"].dropna().unique().tolist()
+        )
+
+        if st.button("Remover selecionadas", use_container_width=True):
+            if len(remover_moedas) > 0:
+                df_watchlist = df_watchlist[~df_watchlist["Moeda"].isin(remover_moedas)]
+                salvar_watchlist(df_watchlist)
+                st.success("Moeda(s) removida(s).")
+                df_watchlist = carregar_watchlist()
+
+        st.dataframe(
+            formatar_df_visual(df_watchlist),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        watchlist_csv = df_watchlist.to_csv(index=False).encode("utf-8-sig")
+
+        st.download_button(
+            label="⬇️ Baixar watchlist em CSV",
+            data=watchlist_csv,
+            file_name="watchlist_crypto_filter.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+    st.markdown('<div class="section-title">Comparador de moedas</div>', unsafe_allow_html=True)
+
+    moedas_comparar = st.multiselect(
+        "Selecione até 4 moedas para comparar",
+        df["Moeda"].tolist(),
+        default=df.sort_values(by="Score", ascending=False)["Moeda"].head(2).tolist()
+    )
+
+    if len(moedas_comparar) > 0:
+        df_comparacao = df[df["Moeda"].isin(moedas_comparar)][
+            [
+                "Moeda",
+                "Símbolo",
+                "Ranking interno",
+                "Ranking",
+                "Preço",
+                "Market cap",
+                "Volume 24h",
+                "Variação 24h %",
+                "Variação 7d %",
+                "Variação 30d %",
+                "Score",
+                "Classificação",
+                "Tendência",
+                "Nível de risco",
+                "Selo de qualidade"
+            ]
+        ].copy()
+
+        st.dataframe(
+            df_comparacao,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    st.markdown('<div class="section-title">Resultado</div>', unsafe_allow_html=True)
+
+    df_final = preparar_df_final(df)
+
+    df_top = df_final[df_final["Selo de qualidade"].isin(["Alta qualidade", "Boa oportunidade"])].copy()
+    df_risco_alto = df_final[df_final["Nível de risco"] == "Alto"].copy()
+    df_tendencia_alta = df_final[df_final["Tendência"] == "Alta"].copy()
+
+    df_final_formatado = formatar_df_visual(df_final)
+
+    st.dataframe(
+        df_final_formatado,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    csv = df_final_formatado.to_csv(index=False).encode("utf-8-sig")
+
+    col_csv, col_excel = st.columns(2)
+
+    with col_csv:
+        st.download_button(
+            label="⬇️ Baixar resultado em CSV",
+            data=csv,
+            file_name="resultado_crypto_filter.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+    with col_excel:
+        excel = exportar_excel(
+            df_final,
+            df_top,
+            df_risco_alto,
+            df_tendencia_alta,
+            carregar_watchlist()
+        )
+
+        st.download_button(
+            label="⬇️ Baixar Excel com abas",
+            data=excel,
+            file_name="resultado_crypto_filter.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
