@@ -1,4 +1,4 @@
-import os
+import math
 from io import BytesIO
 from datetime import datetime
 
@@ -11,10 +11,6 @@ st.set_page_config(
     page_icon="📊",
     layout="wide"
 )
-
-WATCHLIST_FILE = "watchlist.csv"
-HISTORICO_FILE = "historico_buscas.csv"
-HISTORICO_MOEDAS_FILE = "historico_moedas.csv"
 
 st.markdown(
     """
@@ -62,7 +58,7 @@ st.markdown(
 st.markdown('<div class="main-title">📊 Crypto Filter Pro</div>', unsafe_allow_html=True)
 
 st.markdown(
-    '<div class="subtitle">Scanner de criptomoedas com score avançado, risco, tendência, watchlist, histórico e monitoramento.</div>',
+    '<div class="subtitle">Scanner de criptomoedas com Supabase, score avançado, risco, tendência, watchlist, histórico e monitoramento.</div>',
     unsafe_allow_html=True
 )
 
@@ -74,6 +70,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 meme_terms = [
     "doge", "shib", "pepe", "inu", "floki", "bonk",
@@ -90,6 +87,232 @@ stablecoins = [
     "USDE", "PYUSD", "BUSD", "GUSD", "LUSD", "FRAX",
     "USDP", "EURS", "SUSD", "USD0", "RLUSD"
 ]
+
+
+display_to_db = {
+    "Data adicionada": "data_adicionada",
+    "Data da busca": "data_da_busca",
+    "Perfil": "perfil",
+    "Ranking interno": "ranking_interno",
+    "Ranking": "ranking",
+    "Moeda": "moeda",
+    "Símbolo": "simbolo",
+    "Preço": "preco",
+    "Market cap": "market_cap",
+    "Volume 24h": "volume_24h",
+    "Variação 24h %": "variacao_24h",
+    "Variação 7d %": "variacao_7d",
+    "Variação 30d %": "variacao_30d",
+    "Score": "score",
+    "Classificação": "classificacao",
+    "Tendência": "tendencia",
+    "Nível de risco": "nivel_de_risco",
+    "Selo de qualidade": "selo_de_qualidade",
+    "Alertas de risco": "alertas_de_risco",
+    "Motivo": "motivo",
+    "Resumo final": "resumo_final",
+    "Moedas analisadas": "moedas_analisadas",
+    "Moedas aprovadas": "moedas_aprovadas",
+    "Melhor moeda": "melhor_moeda",
+    "Melhor score": "melhor_score",
+    "Excelentes": "excelentes",
+    "Boas": "boas",
+    "Médias": "medias",
+    "Fracas": "fracas",
+    "Risco baixo": "risco_baixo",
+    "Risco moderado": "risco_moderado",
+    "Risco médio": "risco_medio",
+    "Risco alto": "risco_alto",
+    "Tendência alta": "tendencia_alta",
+    "Tendência neutra": "tendencia_neutra",
+    "Tendência baixa": "tendencia_baixa",
+    "Tendência instável": "tendencia_instavel"
+}
+
+db_to_display = {v: k for k, v in display_to_db.items()}
+
+
+def limpar_valor_json(valor):
+    if valor is None:
+        return None
+
+    if isinstance(valor, float):
+        if math.isnan(valor) or math.isinf(valor):
+            return None
+
+    return valor
+
+
+def limpar_payload(lista):
+    dados_limpos = []
+
+    for item in lista:
+        item_limpo = {}
+
+        for chave, valor in item.items():
+            item_limpo[chave] = limpar_valor_json(valor)
+
+        dados_limpos.append(item_limpo)
+
+    return dados_limpos
+
+
+def get_supabase_config():
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+
+        if not url or not key:
+            return None, None
+
+        return url.rstrip("/"), key
+    except Exception:
+        return None, None
+
+
+def supabase_headers():
+    url, key = get_supabase_config()
+
+    if not url or not key:
+        return None
+
+    return {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
+
+
+def supabase_disponivel():
+    url, key = get_supabase_config()
+    return bool(url and key)
+
+
+def supabase_select(table_name):
+    url, key = get_supabase_config()
+    headers = supabase_headers()
+
+    if not url or not headers:
+        return []
+
+    endpoint = f"{url}/rest/v1/{table_name}?select=*"
+
+    try:
+        response = requests.get(endpoint, headers=headers, timeout=30)
+
+        if response.status_code not in [200, 206]:
+            st.error(f"Erro ao ler tabela {table_name}: {response.status_code}")
+            st.code(response.text)
+            return []
+
+        return response.json()
+
+    except Exception as erro:
+        st.error(f"Erro de conexão com Supabase na tabela {table_name}.")
+        st.code(str(erro))
+        return []
+
+
+def supabase_insert(table_name, rows):
+    url, key = get_supabase_config()
+    headers = supabase_headers()
+
+    if not url or not headers:
+        st.error("Supabase não configurado. Confira .streamlit/secrets.toml.")
+        return False
+
+    if not rows:
+        return True
+
+    endpoint = f"{url}/rest/v1/{table_name}"
+
+    try:
+        response = requests.post(
+            endpoint,
+            headers=headers,
+            json=limpar_payload(rows),
+            timeout=30
+        )
+
+        if response.status_code not in [200, 201]:
+            st.error(f"Erro ao inserir na tabela {table_name}: {response.status_code}")
+            st.code(response.text)
+            return False
+
+        return True
+
+    except Exception as erro:
+        st.error(f"Erro de conexão ao inserir na tabela {table_name}.")
+        st.code(str(erro))
+        return False
+
+
+def supabase_delete_all(table_name):
+    url, key = get_supabase_config()
+    headers = supabase_headers()
+
+    if not url or not headers:
+        st.error("Supabase não configurado. Confira .streamlit/secrets.toml.")
+        return False
+
+    endpoint = f"{url}/rest/v1/{table_name}?id=gte.0"
+
+    try:
+        response = requests.delete(endpoint, headers=headers, timeout=30)
+
+        if response.status_code not in [200, 204]:
+            st.error(f"Erro ao limpar tabela {table_name}: {response.status_code}")
+            st.code(response.text)
+            return False
+
+        return True
+
+    except Exception as erro:
+        st.error(f"Erro de conexão ao limpar tabela {table_name}.")
+        st.code(str(erro))
+        return False
+
+
+def df_to_supabase_rows(df):
+    if df.empty:
+        return []
+
+    df_db = df.copy()
+    df_db = df_db.rename(columns=display_to_db)
+
+    colunas_validas = list(display_to_db.values())
+
+    colunas_existentes = [
+        coluna for coluna in df_db.columns
+        if coluna in colunas_validas
+    ]
+
+    df_db = df_db[colunas_existentes]
+
+    df_db = df_db.astype(object).where(pd.notnull(df_db), None)
+
+    return df_db.to_dict(orient="records")
+
+
+def supabase_rows_to_df(rows):
+    if not rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows)
+
+    colunas_para_remover = []
+
+    for coluna in ["id", "created_at"]:
+        if coluna in df.columns:
+            colunas_para_remover.append(coluna)
+
+    if colunas_para_remover:
+        df = df.drop(columns=colunas_para_remover)
+
+    df = df.rename(columns=db_to_display)
+
+    return df
 
 
 @st.cache_data(ttl=900)
@@ -428,6 +651,9 @@ def formatar_df_visual(df_final):
 
 
 def carregar_watchlist():
+    rows = supabase_select("watchlist")
+    df = supabase_rows_to_df(rows)
+
     colunas = [
         "Data adicionada",
         "Ranking interno",
@@ -450,20 +676,25 @@ def carregar_watchlist():
         "Resumo final"
     ]
 
-    if os.path.exists(WATCHLIST_FILE):
-        try:
-            return pd.read_csv(WATCHLIST_FILE)
-        except Exception:
-            return pd.DataFrame(columns=colunas)
+    for coluna in colunas:
+        if coluna not in df.columns:
+            df[coluna] = None
 
-    return pd.DataFrame(columns=colunas)
+    return df[colunas]
 
 
 def salvar_watchlist(df_watchlist):
-    df_watchlist.to_csv(WATCHLIST_FILE, index=False, encoding="utf-8-sig")
+    if supabase_delete_all("watchlist"):
+        rows = df_to_supabase_rows(df_watchlist)
+        return supabase_insert("watchlist", rows)
+
+    return False
 
 
 def carregar_historico():
+    rows = supabase_select("historico_buscas")
+    df = supabase_rows_to_df(rows)
+
     colunas = [
         "Data da busca",
         "Perfil",
@@ -485,23 +716,23 @@ def carregar_historico():
         "Tendência instável"
     ]
 
-    if os.path.exists(HISTORICO_FILE):
-        try:
-            return pd.read_csv(HISTORICO_FILE)
-        except Exception:
-            return pd.DataFrame(columns=colunas)
+    for coluna in colunas:
+        if coluna not in df.columns:
+            df[coluna] = None
 
-    return pd.DataFrame(columns=colunas)
+    return df[colunas]
 
 
 def salvar_historico(nova_linha):
-    df_historico = carregar_historico()
     df_nova_linha = pd.DataFrame([nova_linha])
-    df_historico = pd.concat([df_historico, df_nova_linha], ignore_index=True)
-    df_historico.to_csv(HISTORICO_FILE, index=False, encoding="utf-8-sig")
+    rows = df_to_supabase_rows(df_nova_linha)
+    return supabase_insert("historico_buscas", rows)
 
 
 def carregar_historico_moedas():
+    rows = supabase_select("historico_moedas")
+    df = supabase_rows_to_df(rows)
+
     colunas = [
         "Data da busca",
         "Perfil",
@@ -525,19 +756,22 @@ def carregar_historico_moedas():
         "Resumo final"
     ]
 
-    if os.path.exists(HISTORICO_MOEDAS_FILE):
-        try:
-            return pd.read_csv(HISTORICO_MOEDAS_FILE)
-        except Exception:
-            return pd.DataFrame(columns=colunas)
+    for coluna in colunas:
+        if coluna not in df.columns:
+            df[coluna] = None
 
-    return pd.DataFrame(columns=colunas)
+    return df[colunas]
 
 
 def salvar_historico_moedas(df_moedas):
-    df_historico_moedas = carregar_historico_moedas()
-    df_historico_moedas = pd.concat([df_historico_moedas, df_moedas], ignore_index=True)
-    df_historico_moedas.to_csv(HISTORICO_MOEDAS_FILE, index=False, encoding="utf-8-sig")
+    rows = df_to_supabase_rows(df_moedas)
+    return supabase_insert("historico_moedas", rows)
+
+
+def limpar_historico_completo():
+    ok1 = supabase_delete_all("historico_buscas")
+    ok2 = supabase_delete_all("historico_moedas")
+    return ok1 and ok2
 
 
 def gerar_monitoramento(df_historico_moedas):
@@ -649,6 +883,13 @@ def exportar_excel(
             df_monitoramento.to_excel(writer, index=False, sheet_name="Monitoramento")
 
     return output.getvalue()
+
+
+if not supabase_disponivel():
+    st.error(
+        "Supabase não configurado. Confira se existe o arquivo .streamlit/secrets.toml com SUPABASE_URL e SUPABASE_KEY."
+    )
+    st.stop()
 
 
 with st.sidebar:
@@ -1141,13 +1382,13 @@ else:
                         st.info("Essas moedas já estão na watchlist.")
                     else:
                         df_watchlist = pd.concat([df_watchlist, df_selecionadas], ignore_index=True)
-                        salvar_watchlist(df_watchlist)
-                        st.success("Moeda(s) adicionada(s) à watchlist.")
+                        if salvar_watchlist(df_watchlist):
+                            st.success("Moeda(s) adicionada(s) à watchlist.")
 
         with col_watch_2:
             if st.button("🗑️ Limpar watchlist", use_container_width=True):
-                salvar_watchlist(pd.DataFrame(columns=carregar_watchlist().columns))
-                st.success("Watchlist limpa.")
+                if salvar_watchlist(pd.DataFrame(columns=carregar_watchlist().columns)):
+                    st.success("Watchlist limpa.")
 
         df_watchlist = carregar_watchlist()
 
@@ -1162,8 +1403,8 @@ else:
             if st.button("Remover selecionadas", use_container_width=True):
                 if len(remover_moedas) > 0:
                     df_watchlist = df_watchlist[~df_watchlist["Moeda"].isin(remover_moedas)]
-                    salvar_watchlist(df_watchlist)
-                    st.success("Moeda(s) removida(s).")
+                    if salvar_watchlist(df_watchlist):
+                        st.success("Moeda(s) removida(s).")
                     df_watchlist = carregar_watchlist()
 
             st.dataframe(
@@ -1274,19 +1515,8 @@ else:
             )
 
         if st.button("🗑️ Limpar todo o histórico", use_container_width=True):
-            pd.DataFrame(columns=carregar_historico().columns).to_csv(
-                HISTORICO_FILE,
-                index=False,
-                encoding="utf-8-sig"
-            )
-
-            pd.DataFrame(columns=carregar_historico_moedas().columns).to_csv(
-                HISTORICO_MOEDAS_FILE,
-                index=False,
-                encoding="utf-8-sig"
-            )
-
-            st.success("Histórico resumido e detalhado foram limpos.")
+            if limpar_historico_completo():
+                st.success("Histórico resumido e detalhado foram limpos.")
 
     with tab_monitoramento:
         st.markdown('<div class="section-title">📈 Monitoramento de moedas</div>', unsafe_allow_html=True)
@@ -1387,7 +1617,7 @@ else:
         st.write("- Top oportunidades")
         st.write("- Risco alto")
         st.write("- Tendência alta")
-        st.write("- Watchlist, se houver moedas salvas")
-        st.write("- Histórico resumido, se houver buscas salvas")
-        st.write("- Histórico detalhado de moedas, se houver buscas salvas")
-        st.write("- Monitoramento, se houver dados suficientes")
+        st.write("- Watchlist")
+        st.write("- Histórico resumido")
+        st.write("- Histórico detalhado de moedas")
+        st.write("- Monitoramento")

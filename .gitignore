@@ -1,0 +1,4 @@
+.streamlit/secrets.toml
+teste_secrets.py
+__pycache__/
+*.pyc
