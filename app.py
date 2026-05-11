@@ -286,3 +286,13 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                     use_container_width=True,
                     hide_index=True
                 )
+
+                csv = df_final.to_csv(index=False).encode("utf-8-sig")
+
+                st.download_button(
+                    label="⬇️ Baixar resultado em CSV",
+                    data=csv,
+                    file_name="resultado_crypto_filter.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
