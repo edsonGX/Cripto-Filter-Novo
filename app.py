@@ -212,6 +212,51 @@ def classificar_score(score):
         return "Fraca"
 
 
+def gerar_motivo(row):
+    score = row["Score"]
+    market_cap = row["Market cap"]
+    volume = row["Volume 24h"]
+    variacao = row["Variação 24h %"]
+
+    motivos = []
+
+    if score >= 85:
+        motivos.append("score forte")
+    elif score >= 70:
+        motivos.append("score bom")
+    elif score >= 50:
+        motivos.append("score moderado")
+    else:
+        motivos.append("score fraco")
+
+    if market_cap >= 10_000_000_000:
+        motivos.append("market cap alto")
+    elif market_cap >= 1_000_000_000:
+        motivos.append("market cap relevante")
+    else:
+        motivos.append("market cap menor")
+
+    if volume >= 1_000_000_000:
+        motivos.append("volume muito forte")
+    elif volume >= 100_000_000:
+        motivos.append("bom volume")
+    else:
+        motivos.append("volume mais baixo")
+
+    if variacao >= 10:
+        motivos.append("alta forte em 24h")
+    elif variacao >= 3:
+        motivos.append("alta moderada em 24h")
+    elif variacao <= -10:
+        motivos.append("queda forte em 24h")
+    elif variacao <= -3:
+        motivos.append("queda moderada em 24h")
+    else:
+        motivos.append("variação estável")
+
+    return ", ".join(motivos).capitalize() + "."
+
+
 def formatar_dolar(valor):
     try:
         return f"US$ {valor:,.2f}"
@@ -303,6 +348,7 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
             ).round(2)
 
             df["Classificação"] = df["Score"].apply(classificar_score)
+            df["Motivo"] = df.apply(gerar_motivo, axis=1)
 
             df = df[df["Score"] >= score_min]
 
@@ -351,7 +397,8 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                         "Volume 24h",
                         "Variação 24h %",
                         "Score",
-                        "Classificação"
+                        "Classificação",
+                        "Motivo"
                     ]
                 ].copy()
 
