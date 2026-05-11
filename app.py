@@ -201,6 +201,17 @@ def parece_memecoin(nome, simbolo):
     return False
 
 
+def classificar_score(score):
+    if score >= 85:
+        return "Excelente"
+    elif score >= 70:
+        return "Boa"
+    elif score >= 50:
+        return "Média"
+    else:
+        return "Fraca"
+
+
 def formatar_dolar(valor):
     try:
         return f"US$ {valor:,.2f}"
@@ -291,6 +302,8 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 (df["Variação 24h %"].fillna(0).rank(pct=True) * 15)
             ).round(2)
 
+            df["Classificação"] = df["Score"].apply(classificar_score)
+
             df = df[df["Score"] >= score_min]
 
             if df.empty:
@@ -310,6 +323,9 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 melhor_score = df["Score"].max()
                 melhor_moeda = df.sort_values(by="Score", ascending=False).iloc[0]["Moeda"]
 
+                excelentes = len(df[df["Classificação"] == "Excelente"])
+                boas = len(df[df["Classificação"] == "Boa"])
+
                 st.markdown('<div class="section-title">Resumo do filtro</div>', unsafe_allow_html=True)
 
                 m1, m2, m3, m4 = st.columns(4)
@@ -318,6 +334,10 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 m2.metric("Moedas aprovadas", total_filtradas)
                 m3.metric("Melhor score", melhor_score)
                 m4.metric("Melhor moeda", melhor_moeda)
+
+                m5, m6 = st.columns(2)
+                m5.metric("Classificação excelente", excelentes)
+                m6.metric("Classificação boa", boas)
 
                 st.markdown('<div class="section-title">Resultado</div>', unsafe_allow_html=True)
 
@@ -330,7 +350,8 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                         "Market cap",
                         "Volume 24h",
                         "Variação 24h %",
-                        "Score"
+                        "Score",
+                        "Classificação"
                     ]
                 ].copy()
 
