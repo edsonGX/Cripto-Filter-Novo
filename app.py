@@ -46,7 +46,7 @@ st.markdown(
 st.markdown('<div class="main-title">📊 Crypto Filter Pro</div>', unsafe_allow_html=True)
 
 st.markdown(
-    '<div class="subtitle">Filtro inteligente de criptomoedas com exclusão automática de memecoins e stablecoins.</div>',
+    '<div class="subtitle">Scanner de criptomoedas com anti-memecoin, score avançado, risco, tendência e análise individual.</div>',
     unsafe_allow_html=True
 )
 
@@ -153,7 +153,7 @@ with col6:
         value=score_padrao
     )
 
-st.markdown('<div class="section-title">Busca, risco e organização</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Busca, tendência, risco e organização</div>', unsafe_allow_html=True)
 
 col7, col8, col9 = st.columns(3)
 
@@ -171,7 +171,9 @@ with col8:
             "Ranking",
             "Market cap",
             "Volume 24h",
-            "Variação 24h %"
+            "Variação 24h %",
+            "Variação 7d %",
+            "Variação 30d %"
         ]
     )
 
@@ -211,9 +213,35 @@ with col11:
     )
 
 with col12:
+    filtro_tendencia = st.selectbox(
+        "Filtrar por tendência",
+        [
+            "Todas",
+            "Alta",
+            "Neutra",
+            "Baixa",
+            "Instável"
+        ]
+    )
+
+col13, col14, col15 = st.columns(3)
+
+with col13:
     remover_stablecoins = st.checkbox(
         "Remover stablecoins",
         value=True
+    )
+
+with col14:
+    top_oportunidades = st.checkbox(
+        "Mostrar apenas Top oportunidades",
+        value=False
+    )
+
+with col15:
+    limpeza_pesada = st.checkbox(
+        "Ativar limpeza pesada",
+        value=False
     )
 
 limite_resultados = st.slider(
@@ -224,10 +252,26 @@ limite_resultados = st.slider(
     step=10
 )
 
+tipo_grafico = st.selectbox(
+    "Gráfico visual",
+    [
+        "Score",
+        "Volume 24h",
+        "Market cap",
+        "Variação 24h %",
+        "Variação 7d %",
+        "Variação 30d %"
+    ]
+)
+
 meme_terms = [
     "doge", "shib", "pepe", "inu", "floki", "bonk",
     "meme", "cat", "dog", "baby", "elon", "trump",
-    "maga", "wojak", "moon", "safe", "frog", "pump"
+    "maga", "wojak", "moon", "safe", "frog", "pump",
+    "hamster", "kitty", "pug", "ape", "chad", "based",
+    "cum", "elon", "donald", "biden", "putin", "obama",
+    "toad", "goat", "moonshot", "rocket", "lambo", "wife",
+    "millionaire", "rich", "degen", "waifu"
 ]
 
 stablecoins = [
@@ -269,6 +313,29 @@ def parece_memecoin(nome, simbolo):
     return False
 
 
+def classificar_tendencia(v24, v7, v30):
+    v24 = 0 if pd.isna(v24) else v24
+    v7 = 0 if pd.isna(v7) else v7
+    v30 = 0 if pd.isna(v30) else v30
+
+    if abs(v24) >= 35 or abs(v7) >= 50 or abs(v30) >= 100:
+        return "Instável"
+
+    if v24 > 0 and v7 > 0 and v30 > 0:
+        return "Alta"
+
+    if v24 < 0 and v7 < 0 and v30 < 0:
+        return "Baixa"
+
+    if v7 > 0 and v30 > 0:
+        return "Alta"
+
+    if v7 < 0 and v30 < 0:
+        return "Baixa"
+
+    return "Neutra"
+
+
 def classificar_score(score):
     if score >= 85:
         return "Excelente"
@@ -280,11 +347,34 @@ def classificar_score(score):
         return "Fraca"
 
 
+def gerar_selo(row):
+    score = row["Score"]
+    risco = row["Nível de risco"]
+    tendencia = row["Tendência"]
+
+    if score >= 80 and risco in ["Baixo", "Moderado"] and tendencia == "Alta":
+        return "Alta qualidade"
+
+    if score >= 70 and risco in ["Baixo", "Moderado"] and tendencia in ["Alta", "Neutra"]:
+        return "Boa oportunidade"
+
+    if score >= 50 and risco != "Alto":
+        return "Observar"
+
+    if risco == "Alto":
+        return "Risco elevado"
+
+    return "Evitar por enquanto"
+
+
 def gerar_motivo(row):
     score = row["Score"]
     market_cap = row["Market cap"]
     volume = row["Volume 24h"]
-    variacao = row["Variação 24h %"]
+    v24 = row["Variação 24h %"]
+    v7 = row["Variação 7d %"]
+    v30 = row["Variação 30d %"]
+    tendencia = row["Tendência"]
 
     motivos = []
 
@@ -311,16 +401,19 @@ def gerar_motivo(row):
     else:
         motivos.append("volume mais baixo")
 
-    if variacao >= 10:
-        motivos.append("alta forte em 24h")
-    elif variacao >= 3:
-        motivos.append("alta moderada em 24h")
-    elif variacao <= -10:
-        motivos.append("queda forte em 24h")
-    elif variacao <= -3:
-        motivos.append("queda moderada em 24h")
+    if tendencia == "Alta":
+        motivos.append("tendência positiva")
+    elif tendencia == "Baixa":
+        motivos.append("tendência negativa")
+    elif tendencia == "Instável":
+        motivos.append("movimento instável")
     else:
-        motivos.append("variação estável")
+        motivos.append("tendência neutra")
+
+    if v24 >= 15 or v7 >= 30 or v30 >= 60:
+        motivos.append("forte valorização recente")
+    elif v24 <= -15 or v7 <= -30 or v30 <= -60:
+        motivos.append("queda relevante recente")
 
     return ", ".join(motivos).capitalize() + "."
 
@@ -331,8 +424,11 @@ def gerar_alertas_risco(row):
     ranking = row["Ranking"]
     market_cap = row["Market cap"]
     volume = row["Volume 24h"]
-    variacao = row["Variação 24h %"]
+    v24 = row["Variação 24h %"]
+    v7 = row["Variação 7d %"]
+    v30 = row["Variação 30d %"]
     score = row["Score"]
+    tendencia = row["Tendência"]
 
     if ranking > 300:
         alertas.append("ranking distante")
@@ -347,10 +443,23 @@ def gerar_alertas_risco(row):
     elif volume < 30_000_000:
         alertas.append("volume moderado")
 
-    if variacao >= 30:
+    if v24 >= 30:
         alertas.append("alta muito forte em 24h")
-    elif variacao <= -30:
+    elif v24 <= -30:
         alertas.append("queda muito forte em 24h")
+
+    if v7 >= 50:
+        alertas.append("alta muito forte em 7d")
+    elif v7 <= -50:
+        alertas.append("queda muito forte em 7d")
+
+    if v30 >= 100:
+        alertas.append("alta extrema em 30d")
+    elif v30 <= -70:
+        alertas.append("queda extrema em 30d")
+
+    if tendencia == "Instável":
+        alertas.append("tendência instável")
 
     if score < 50:
         alertas.append("score fraco")
@@ -369,9 +478,9 @@ def nivel_risco(row):
 
     quantidade_alertas = alertas.count(",") + 1
 
-    if quantidade_alertas >= 3:
+    if quantidade_alertas >= 4:
         return "Alto"
-    elif quantidade_alertas == 2:
+    elif quantidade_alertas >= 2:
         return "Médio"
     else:
         return "Moderado"
@@ -389,6 +498,55 @@ def formatar_numero(valor):
         return f"US$ {valor:,.0f}"
     except Exception:
         return valor
+
+
+def calcular_score_avancado(df):
+    df = df.copy()
+
+    market_score = df["Market cap"].rank(pct=True) * 25
+    volume_score = df["Volume 24h"].rank(pct=True) * 25
+
+    ranking_maximo = df["Ranking"].max()
+    ranking_minimo = df["Ranking"].min()
+
+    if ranking_maximo == ranking_minimo:
+        ranking_score = pd.Series([15] * len(df), index=df.index)
+    else:
+        ranking_score = (1 - ((df["Ranking"] - ranking_minimo) / (ranking_maximo - ranking_minimo))) * 15
+
+    v24_score = df["Variação 24h %"].fillna(0).rank(pct=True) * 10
+    v7_score = df["Variação 7d %"].fillna(0).rank(pct=True) * 10
+    v30_score = df["Variação 30d %"].fillna(0).rank(pct=True) * 10
+
+    tendencia_bonus = df["Tendência"].map(
+        {
+            "Alta": 5,
+            "Neutra": 2,
+            "Baixa": -5,
+            "Instável": -8
+        }
+    ).fillna(0)
+
+    penalidade_volatilidade = (
+        (df["Variação 24h %"].abs() > 35).astype(int) * 5 +
+        (df["Variação 7d %"].abs() > 60).astype(int) * 5 +
+        (df["Variação 30d %"].abs() > 120).astype(int) * 5
+    )
+
+    score = (
+        market_score +
+        volume_score +
+        ranking_score +
+        v24_score +
+        v7_score +
+        v30_score +
+        tendencia_bonus -
+        penalidade_volatilidade
+    )
+
+    score = score.clip(lower=0, upper=100).round(2)
+
+    return score
 
 
 if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
@@ -411,6 +569,8 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
             volume_24h = quote.get("volume_24h")
             preco = quote.get("price")
             variacao_24h = quote.get("percent_change_24h")
+            variacao_7d = quote.get("percent_change_7d")
+            variacao_30d = quote.get("percent_change_30d")
 
             moedas.append(
                 {
@@ -421,6 +581,8 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                     "Market cap": market_cap,
                     "Volume 24h": volume_24h,
                     "Variação 24h %": variacao_24h,
+                    "Variação 7d %": variacao_7d,
+                    "Variação 30d %": variacao_30d,
                     "Memecoin": parece_memecoin(nome, simbolo)
                 }
             )
@@ -432,6 +594,12 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
         df["Volume 24h"] = pd.to_numeric(df["Volume 24h"], errors="coerce")
         df["Preço"] = pd.to_numeric(df["Preço"], errors="coerce")
         df["Variação 24h %"] = pd.to_numeric(df["Variação 24h %"], errors="coerce")
+        df["Variação 7d %"] = pd.to_numeric(df["Variação 7d %"], errors="coerce")
+        df["Variação 30d %"] = pd.to_numeric(df["Variação 30d %"], errors="coerce")
+
+        df["Variação 24h %"] = df["Variação 24h %"].fillna(0)
+        df["Variação 7d %"] = df["Variação 7d %"].fillna(0)
+        df["Variação 30d %"] = df["Variação 30d %"].fillna(0)
 
         df = df.dropna(subset=["Ranking", "Market cap", "Volume 24h"])
 
@@ -449,6 +617,16 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
         if remover_stablecoins:
             df = df[~df["Símbolo"].isin(stablecoins)]
 
+        if limpeza_pesada:
+            df = df[
+                (df["Market cap"] >= 100_000_000) &
+                (df["Volume 24h"] >= 10_000_000) &
+                (df["Ranking"] <= 500) &
+                (df["Variação 24h %"].between(-30, 50)) &
+                (df["Variação 7d %"].between(-50, 80)) &
+                (df["Variação 30d %"].between(-70, 150))
+            ]
+
         if busca.strip() != "":
             busca_normalizada = busca.strip().lower()
 
@@ -461,16 +639,21 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
             st.warning("Nenhuma moeda passou nos filtros escolhidos.")
 
         else:
-            df["Score"] = (
-                (df["Market cap"].rank(pct=True) * 45) +
-                (df["Volume 24h"].rank(pct=True) * 40) +
-                (df["Variação 24h %"].fillna(0).rank(pct=True) * 15)
-            ).round(2)
+            df["Tendência"] = df.apply(
+                lambda row: classificar_tendencia(
+                    row["Variação 24h %"],
+                    row["Variação 7d %"],
+                    row["Variação 30d %"]
+                ),
+                axis=1
+            )
 
+            df["Score"] = calcular_score_avancado(df)
             df["Classificação"] = df["Score"].apply(classificar_score)
             df["Motivo"] = df.apply(gerar_motivo, axis=1)
             df["Alertas de risco"] = df.apply(gerar_alertas_risco, axis=1)
             df["Nível de risco"] = df.apply(nivel_risco, axis=1)
+            df["Selo de qualidade"] = df.apply(gerar_selo, axis=1)
 
             df = df[df["Score"] >= score_min]
 
@@ -479,6 +662,18 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
 
             if filtro_risco != "Todos":
                 df = df[df["Nível de risco"] == filtro_risco]
+
+            if filtro_tendencia != "Todas":
+                df = df[df["Tendência"] == filtro_tendencia]
+
+            if top_oportunidades:
+                df = df[
+                    (df["Score"] >= 70) &
+                    (df["Nível de risco"].isin(["Baixo", "Moderado"])) &
+                    (df["Tendência"].isin(["Alta", "Neutra"])) &
+                    (df["Market cap"] >= 300_000_000) &
+                    (df["Volume 24h"] >= 30_000_000)
+                ]
 
             if df.empty:
                 st.warning("Nenhuma moeda passou nos filtros escolhidos.")
@@ -507,6 +702,11 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 risco_medio = len(df[df["Nível de risco"] == "Médio"])
                 risco_alto = len(df[df["Nível de risco"] == "Alto"])
 
+                tendencia_alta = len(df[df["Tendência"] == "Alta"])
+                tendencia_neutra = len(df[df["Tendência"] == "Neutra"])
+                tendencia_baixa = len(df[df["Tendência"] == "Baixa"])
+                tendencia_instavel = len(df[df["Tendência"] == "Instável"])
+
                 st.markdown('<div class="section-title">Resumo do filtro</div>', unsafe_allow_html=True)
 
                 m1, m2, m3, m4 = st.columns(4)
@@ -528,12 +728,37 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 r3.metric("Risco médio", risco_medio)
                 r4.metric("Risco alto", risco_alto)
 
-                st.markdown('<div class="section-title">Gráfico de score</div>', unsafe_allow_html=True)
+                t1, t2, t3, t4 = st.columns(4)
+                t1.metric("Tendência alta", tendencia_alta)
+                t2.metric("Tendência neutra", tendencia_neutra)
+                t3.metric("Tendência baixa", tendencia_baixa)
+                t4.metric("Tendência instável", tendencia_instavel)
 
-                df_grafico = df.sort_values(by="Score", ascending=False).head(10)
+                st.markdown('<div class="section-title">Gráfico visual</div>', unsafe_allow_html=True)
+
+                df_grafico = df.sort_values(by=tipo_grafico, ascending=False).head(10)
                 df_grafico = df_grafico.set_index("Símbolo")
 
-                st.bar_chart(df_grafico["Score"])
+                st.bar_chart(df_grafico[tipo_grafico])
+
+                st.markdown('<div class="section-title">Análise individual</div>', unsafe_allow_html=True)
+
+                moeda_escolhida = st.selectbox(
+                    "Escolha uma moeda para análise rápida",
+                    df["Moeda"].tolist()
+                )
+
+                linha = df[df["Moeda"] == moeda_escolhida].iloc[0]
+
+                a1, a2, a3, a4 = st.columns(4)
+                a1.metric("Símbolo", linha["Símbolo"])
+                a2.metric("Score", linha["Score"])
+                a3.metric("Risco", linha["Nível de risco"])
+                a4.metric("Tendência", linha["Tendência"])
+
+                st.write(f"**Selo de qualidade:** {linha['Selo de qualidade']}")
+                st.write(f"**Motivo:** {linha['Motivo']}")
+                st.write(f"**Alertas:** {linha['Alertas de risco']}")
 
                 st.markdown('<div class="section-title">Resultado</div>', unsafe_allow_html=True)
 
@@ -546,9 +771,13 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                         "Market cap",
                         "Volume 24h",
                         "Variação 24h %",
+                        "Variação 7d %",
+                        "Variação 30d %",
                         "Score",
                         "Classificação",
+                        "Tendência",
                         "Nível de risco",
+                        "Selo de qualidade",
                         "Alertas de risco",
                         "Motivo"
                     ]
@@ -558,6 +787,8 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 df_final["Market cap"] = df_final["Market cap"].apply(formatar_numero)
                 df_final["Volume 24h"] = df_final["Volume 24h"].apply(formatar_numero)
                 df_final["Variação 24h %"] = df_final["Variação 24h %"].round(2)
+                df_final["Variação 7d %"] = df_final["Variação 7d %"].round(2)
+                df_final["Variação 30d %"] = df_final["Variação 30d %"].round(2)
 
                 df_final = df_final.reset_index(drop=True)
 
