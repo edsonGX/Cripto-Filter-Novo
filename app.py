@@ -407,6 +407,13 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 m7.metric("Médias", medias)
                 m8.metric("Fracas", fracas)
 
+                st.markdown('<div class="section-title">Gráfico de score</div>', unsafe_allow_html=True)
+
+                df_grafico = df.sort_values(by="Score", ascending=False).head(10)
+                df_grafico = df_grafico.set_index("Símbolo")
+
+                st.bar_chart(df_grafico["Score"])
+
                 st.markdown('<div class="section-title">Resultado</div>', unsafe_allow_html=True)
 
                 df_final = df[
