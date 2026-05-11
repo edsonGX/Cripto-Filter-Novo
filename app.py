@@ -540,7 +540,94 @@ def salvar_historico_moedas(df_moedas):
     df_historico_moedas.to_csv(HISTORICO_MOEDAS_FILE, index=False, encoding="utf-8-sig")
 
 
-def exportar_excel(df_final, df_top, df_risco_alto, df_tendencia_alta, df_watchlist, df_historico, df_historico_moedas):
+def gerar_monitoramento(df_historico_moedas):
+    if df_historico_moedas.empty:
+        return pd.DataFrame()
+
+    df_monitor = df_historico_moedas.copy()
+
+    df_monitor["Data da busca"] = pd.to_datetime(
+        df_monitor["Data da busca"],
+        errors="coerce"
+    )
+
+    df_monitor["Score"] = pd.to_numeric(df_monitor["Score"], errors="coerce")
+    df_monitor["Ranking interno"] = pd.to_numeric(df_monitor["Ranking interno"], errors="coerce")
+    df_monitor["Ranking"] = pd.to_numeric(df_monitor["Ranking"], errors="coerce")
+
+    df_monitor = df_monitor.dropna(subset=["Data da busca", "Símbolo", "Score"])
+
+    if df_monitor.empty:
+        return pd.DataFrame()
+
+    ultimos_registros = (
+        df_monitor.sort_values(by="Data da busca")
+        .groupby("Símbolo", as_index=False)
+        .tail(1)
+    )
+
+    agrupado = df_monitor.groupby("Símbolo").agg(
+        Moeda=("Moeda", "last"),
+        Aparições=("Símbolo", "count"),
+        Score_médio=("Score", "mean"),
+        Melhor_score=("Score", "max"),
+        Menor_ranking_interno=("Ranking interno", "min"),
+        Ranking_global_médio=("Ranking", "mean"),
+        Primeira_aparição=("Data da busca", "min"),
+        Última_aparição=("Data da busca", "max")
+    ).reset_index()
+
+    agrupado = agrupado.merge(
+        ultimos_registros[
+            [
+                "Símbolo",
+                "Score",
+                "Ranking interno",
+                "Tendência",
+                "Nível de risco",
+                "Selo de qualidade",
+                "Classificação"
+            ]
+        ].rename(
+            columns={
+                "Score": "Último_score",
+                "Ranking interno": "Último_ranking_interno",
+                "Tendência": "Tendência_atual",
+                "Nível de risco": "Risco_atual",
+                "Selo de qualidade": "Selo_atual",
+                "Classificação": "Classificação_atual"
+            }
+        ),
+        on="Símbolo",
+        how="left"
+    )
+
+    agrupado["Score_médio"] = agrupado["Score_médio"].round(2)
+    agrupado["Melhor_score"] = agrupado["Melhor_score"].round(2)
+    agrupado["Último_score"] = agrupado["Último_score"].round(2)
+    agrupado["Ranking_global_médio"] = agrupado["Ranking_global_médio"].round(0)
+
+    agrupado["Primeira_aparição"] = agrupado["Primeira_aparição"].dt.strftime("%Y-%m-%d %H:%M:%S")
+    agrupado["Última_aparição"] = agrupado["Última_aparição"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    agrupado = agrupado.sort_values(
+        by=["Aparições", "Score_médio", "Melhor_score"],
+        ascending=[False, False, False]
+    )
+
+    return agrupado
+
+
+def exportar_excel(
+    df_final,
+    df_top,
+    df_risco_alto,
+    df_tendencia_alta,
+    df_watchlist,
+    df_historico,
+    df_historico_moedas,
+    df_monitoramento
+):
     output = BytesIO()
 
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -557,6 +644,9 @@ def exportar_excel(df_final, df_top, df_risco_alto, df_tendencia_alta, df_watchl
 
         if not df_historico_moedas.empty:
             df_historico_moedas.to_excel(writer, index=False, sheet_name="Histórico moedas")
+
+        if not df_monitoramento.empty:
+            df_monitoramento.to_excel(writer, index=False, sheet_name="Monitoramento")
 
     return output.getvalue()
 
@@ -911,13 +1001,14 @@ else:
     df_final = preparar_df_final(df)
     df_final_formatado = formatar_df_visual(df_final)
 
-    tab_scanner, tab_analise, tab_watchlist, tab_comparador, tab_historico, tab_exportacao = st.tabs(
+    tab_scanner, tab_analise, tab_watchlist, tab_comparador, tab_historico, tab_monitoramento, tab_exportacao = st.tabs(
         [
             "📊 Scanner",
             "🔍 Análise individual",
             "⭐ Watchlist",
             "⚖️ Comparador",
             "🕒 Histórico",
+            "📈 Monitoramento",
             "📁 Exportação"
         ]
     )
@@ -1197,6 +1288,56 @@ else:
 
             st.success("Histórico resumido e detalhado foram limpos.")
 
+    with tab_monitoramento:
+        st.markdown('<div class="section-title">📈 Monitoramento de moedas</div>', unsafe_allow_html=True)
+
+        df_historico_moedas = carregar_historico_moedas()
+        df_monitoramento = gerar_monitoramento(df_historico_moedas)
+
+        if df_monitoramento.empty:
+            st.info("Ainda não há dados suficientes para monitoramento. Faça algumas buscas primeiro.")
+        else:
+            total_moedas_monitoradas = len(df_monitoramento)
+            mais_recorrente = df_monitoramento.iloc[0]["Moeda"]
+            maior_aparicoes = int(df_monitoramento.iloc[0]["Aparições"])
+            melhor_score_monitorado = df_monitoramento["Melhor_score"].max()
+
+            mon1, mon2, mon3, mon4 = st.columns(4)
+            mon1.metric("Moedas monitoradas", total_moedas_monitoradas)
+            mon2.metric("Mais recorrente", mais_recorrente)
+            mon3.metric("Aparições da líder", maior_aparicoes)
+            mon4.metric("Melhor score histórico", melhor_score_monitorado)
+
+            st.markdown('<div class="section-title">Moedas mais recorrentes</div>', unsafe_allow_html=True)
+
+            st.dataframe(
+                df_monitoramento,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            st.markdown('<div class="section-title">Gráfico de recorrência</div>', unsafe_allow_html=True)
+
+            df_recorrencia = df_monitoramento.sort_values(by="Aparições", ascending=False).head(10)
+            df_recorrencia = df_recorrencia.set_index("Símbolo")
+            st.bar_chart(df_recorrencia["Aparições"])
+
+            st.markdown('<div class="section-title">Gráfico de score médio</div>', unsafe_allow_html=True)
+
+            df_score_medio = df_monitoramento.sort_values(by="Score_médio", ascending=False).head(10)
+            df_score_medio = df_score_medio.set_index("Símbolo")
+            st.bar_chart(df_score_medio["Score_médio"])
+
+            monitoramento_csv = df_monitoramento.to_csv(index=False).encode("utf-8-sig")
+
+            st.download_button(
+                label="⬇️ Baixar monitoramento em CSV",
+                data=monitoramento_csv,
+                file_name="monitoramento_crypto_filter.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+
     with tab_exportacao:
         st.markdown('<div class="section-title">Exportação</div>', unsafe_allow_html=True)
 
@@ -1206,6 +1347,7 @@ else:
         df_watchlist = carregar_watchlist()
         df_historico = carregar_historico()
         df_historico_moedas = carregar_historico_moedas()
+        df_monitoramento = gerar_monitoramento(df_historico_moedas)
 
         csv = df_final_formatado.to_csv(index=False).encode("utf-8-sig")
 
@@ -1228,7 +1370,8 @@ else:
                 df_tendencia_alta,
                 df_watchlist,
                 df_historico,
-                df_historico_moedas
+                df_historico_moedas,
+                df_monitoramento
             )
 
             st.download_button(
@@ -1247,3 +1390,4 @@ else:
         st.write("- Watchlist, se houver moedas salvas")
         st.write("- Histórico resumido, se houver buscas salvas")
         st.write("- Histórico detalhado de moedas, se houver buscas salvas")
+        st.write("- Monitoramento, se houver dados suficientes")
