@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import pandas as pd
+from io import BytesIO
 
 st.set_page_config(
     page_title="Crypto Filter Pro",
@@ -38,230 +39,33 @@ st.markdown(
         margin-top: 25px;
         margin-bottom: 10px;
     }
+
+    .mini-card {
+        background-color: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
 st.markdown('<div class="main-title">📊 Crypto Filter Pro</div>', unsafe_allow_html=True)
-
 st.markdown(
-    '<div class="subtitle">Scanner de criptomoedas com anti-memecoin, score avançado, risco, tendência e análise individual.</div>',
+    '<div class="subtitle">Scanner de criptomoedas com filtros, score avançado, risco, tendência, comparador e exportação.</div>',
     unsafe_allow_html=True
 )
 
 st.markdown(
     """
     <div class="info-box">
-    Este app é apenas uma ferramenta de filtragem e estudo. 
+    Este app é uma ferramenta de filtragem e estudo. 
     Ele não é recomendação de investimento.
     </div>
     """,
     unsafe_allow_html=True
-)
-
-st.markdown('<div class="section-title">Modo de perfil</div>', unsafe_allow_html=True)
-
-perfil = st.selectbox(
-    "Escolha o perfil do filtro",
-    [
-        "Conservador",
-        "Moderado",
-        "Agressivo",
-        "Personalizado"
-    ]
-)
-
-if perfil == "Conservador":
-    market_cap_padrao = 1_000_000_000
-    volume_padrao = 100_000_000
-    ranking_padrao = 100
-    variacao_min_padrao = -10.0
-    variacao_max_padrao = 15.0
-    score_padrao = 70
-elif perfil == "Moderado":
-    market_cap_padrao = 300_000_000
-    volume_padrao = 30_000_000
-    ranking_padrao = 200
-    variacao_min_padrao = -20.0
-    variacao_max_padrao = 30.0
-    score_padrao = 50
-elif perfil == "Agressivo":
-    market_cap_padrao = 50_000_000
-    volume_padrao = 5_000_000
-    ranking_padrao = 500
-    variacao_min_padrao = -40.0
-    variacao_max_padrao = 80.0
-    score_padrao = 30
-else:
-    market_cap_padrao = 100_000_000
-    volume_padrao = 10_000_000
-    ranking_padrao = 250
-    variacao_min_padrao = -100.0
-    variacao_max_padrao = 100.0
-    score_padrao = 0
-
-st.markdown('<div class="section-title">Filtros principais</div>', unsafe_allow_html=True)
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    market_cap_min = st.number_input(
-        "Market cap mínimo",
-        min_value=0,
-        value=market_cap_padrao,
-        step=10_000_000
-    )
-
-with col2:
-    volume_min = st.number_input(
-        "Volume 24h mínimo",
-        min_value=0,
-        value=volume_padrao,
-        step=1_000_000
-    )
-
-with col3:
-    ranking_max = st.number_input(
-        "Ranking máximo",
-        min_value=1,
-        value=ranking_padrao,
-        step=10
-    )
-
-col4, col5, col6 = st.columns(3)
-
-with col4:
-    variacao_min = st.number_input(
-        "Variação 24h mínima %",
-        value=variacao_min_padrao,
-        step=1.0
-    )
-
-with col5:
-    variacao_max = st.number_input(
-        "Variação 24h máxima %",
-        value=variacao_max_padrao,
-        step=1.0
-    )
-
-with col6:
-    score_min = st.slider(
-        "Score mínimo",
-        min_value=0,
-        max_value=100,
-        value=score_padrao
-    )
-
-st.markdown('<div class="section-title">Busca, tendência, risco e organização</div>', unsafe_allow_html=True)
-
-col7, col8, col9 = st.columns(3)
-
-with col7:
-    busca = st.text_input(
-        "Buscar moeda ou símbolo",
-        placeholder="Ex: BTC, SOL, Ethereum..."
-    )
-
-with col8:
-    ordenar_por = st.selectbox(
-        "Ordenar por",
-        [
-            "Score",
-            "Ranking",
-            "Market cap",
-            "Volume 24h",
-            "Variação 24h %",
-            "Variação 7d %",
-            "Variação 30d %"
-        ]
-    )
-
-with col9:
-    ordem = st.selectbox(
-        "Ordem",
-        [
-            "Maior para menor",
-            "Menor para maior"
-        ]
-    )
-
-col10, col11, col12 = st.columns(3)
-
-with col10:
-    filtro_classificacao = st.selectbox(
-        "Filtrar por classificação",
-        [
-            "Todas",
-            "Excelente",
-            "Boa",
-            "Média",
-            "Fraca"
-        ]
-    )
-
-with col11:
-    filtro_risco = st.selectbox(
-        "Filtrar por nível de risco",
-        [
-            "Todos",
-            "Baixo",
-            "Moderado",
-            "Médio",
-            "Alto"
-        ]
-    )
-
-with col12:
-    filtro_tendencia = st.selectbox(
-        "Filtrar por tendência",
-        [
-            "Todas",
-            "Alta",
-            "Neutra",
-            "Baixa",
-            "Instável"
-        ]
-    )
-
-col13, col14, col15 = st.columns(3)
-
-with col13:
-    remover_stablecoins = st.checkbox(
-        "Remover stablecoins",
-        value=True
-    )
-
-with col14:
-    top_oportunidades = st.checkbox(
-        "Mostrar apenas Top oportunidades",
-        value=False
-    )
-
-with col15:
-    limpeza_pesada = st.checkbox(
-        "Ativar limpeza pesada",
-        value=False
-    )
-
-limite_resultados = st.slider(
-    "Quantidade máxima de resultados",
-    min_value=10,
-    max_value=200,
-    value=50,
-    step=10
-)
-
-tipo_grafico = st.selectbox(
-    "Gráfico visual",
-    [
-        "Score",
-        "Volume 24h",
-        "Market cap",
-        "Variação 24h %",
-        "Variação 7d %",
-        "Variação 30d %"
-    ]
 )
 
 meme_terms = [
@@ -269,8 +73,8 @@ meme_terms = [
     "meme", "cat", "dog", "baby", "elon", "trump",
     "maga", "wojak", "moon", "safe", "frog", "pump",
     "hamster", "kitty", "pug", "ape", "chad", "based",
-    "cum", "elon", "donald", "biden", "putin", "obama",
-    "toad", "goat", "moonshot", "rocket", "lambo", "wife",
+    "cum", "donald", "biden", "putin", "obama",
+    "toad", "goat", "moonshot", "rocket", "lambo",
     "millionaire", "rich", "degen", "waifu"
 ]
 
@@ -343,79 +147,7 @@ def classificar_score(score):
         return "Boa"
     elif score >= 50:
         return "Média"
-    else:
-        return "Fraca"
-
-
-def gerar_selo(row):
-    score = row["Score"]
-    risco = row["Nível de risco"]
-    tendencia = row["Tendência"]
-
-    if score >= 80 and risco in ["Baixo", "Moderado"] and tendencia == "Alta":
-        return "Alta qualidade"
-
-    if score >= 70 and risco in ["Baixo", "Moderado"] and tendencia in ["Alta", "Neutra"]:
-        return "Boa oportunidade"
-
-    if score >= 50 and risco != "Alto":
-        return "Observar"
-
-    if risco == "Alto":
-        return "Risco elevado"
-
-    return "Evitar por enquanto"
-
-
-def gerar_motivo(row):
-    score = row["Score"]
-    market_cap = row["Market cap"]
-    volume = row["Volume 24h"]
-    v24 = row["Variação 24h %"]
-    v7 = row["Variação 7d %"]
-    v30 = row["Variação 30d %"]
-    tendencia = row["Tendência"]
-
-    motivos = []
-
-    if score >= 85:
-        motivos.append("score forte")
-    elif score >= 70:
-        motivos.append("score bom")
-    elif score >= 50:
-        motivos.append("score moderado")
-    else:
-        motivos.append("score fraco")
-
-    if market_cap >= 10_000_000_000:
-        motivos.append("market cap alto")
-    elif market_cap >= 1_000_000_000:
-        motivos.append("market cap relevante")
-    else:
-        motivos.append("market cap menor")
-
-    if volume >= 1_000_000_000:
-        motivos.append("volume muito forte")
-    elif volume >= 100_000_000:
-        motivos.append("bom volume")
-    else:
-        motivos.append("volume mais baixo")
-
-    if tendencia == "Alta":
-        motivos.append("tendência positiva")
-    elif tendencia == "Baixa":
-        motivos.append("tendência negativa")
-    elif tendencia == "Instável":
-        motivos.append("movimento instável")
-    else:
-        motivos.append("tendência neutra")
-
-    if v24 >= 15 or v7 >= 30 or v30 >= 60:
-        motivos.append("forte valorização recente")
-    elif v24 <= -15 or v7 <= -30 or v30 <= -60:
-        motivos.append("queda relevante recente")
-
-    return ", ".join(motivos).capitalize() + "."
+    return "Fraca"
 
 
 def gerar_alertas_risco(row):
@@ -482,22 +214,101 @@ def nivel_risco(row):
         return "Alto"
     elif quantidade_alertas >= 2:
         return "Médio"
+    return "Moderado"
+
+
+def gerar_selo(row):
+    score = row["Score"]
+    risco = row["Nível de risco"]
+    tendencia = row["Tendência"]
+
+    if score >= 80 and risco in ["Baixo", "Moderado"] and tendencia == "Alta":
+        return "Alta qualidade"
+
+    if score >= 70 and risco in ["Baixo", "Moderado"] and tendencia in ["Alta", "Neutra"]:
+        return "Boa oportunidade"
+
+    if score >= 50 and risco != "Alto":
+        return "Observar"
+
+    if risco == "Alto":
+        return "Risco elevado"
+
+    return "Evitar por enquanto"
+
+
+def gerar_motivo(row):
+    motivos = []
+
+    score = row["Score"]
+    market_cap = row["Market cap"]
+    volume = row["Volume 24h"]
+    v24 = row["Variação 24h %"]
+    v7 = row["Variação 7d %"]
+    v30 = row["Variação 30d %"]
+    tendencia = row["Tendência"]
+
+    if score >= 85:
+        motivos.append("score forte")
+    elif score >= 70:
+        motivos.append("score bom")
+    elif score >= 50:
+        motivos.append("score moderado")
     else:
-        return "Moderado"
+        motivos.append("score fraco")
+
+    if market_cap >= 10_000_000_000:
+        motivos.append("market cap alto")
+    elif market_cap >= 1_000_000_000:
+        motivos.append("market cap relevante")
+    else:
+        motivos.append("market cap menor")
+
+    if volume >= 1_000_000_000:
+        motivos.append("volume muito forte")
+    elif volume >= 100_000_000:
+        motivos.append("bom volume")
+    else:
+        motivos.append("volume mais baixo")
+
+    if tendencia == "Alta":
+        motivos.append("tendência positiva")
+    elif tendencia == "Baixa":
+        motivos.append("tendência negativa")
+    elif tendencia == "Instável":
+        motivos.append("movimento instável")
+    else:
+        motivos.append("tendência neutra")
+
+    if v24 >= 15 or v7 >= 30 or v30 >= 60:
+        motivos.append("forte valorização recente")
+    elif v24 <= -15 or v7 <= -30 or v30 <= -60:
+        motivos.append("queda relevante recente")
+
+    return ", ".join(motivos).capitalize() + "."
 
 
-def formatar_dolar(valor):
-    try:
-        return f"US$ {valor:,.2f}"
-    except Exception:
-        return valor
+def resumo_final(row):
+    selo = row["Selo de qualidade"]
+    risco = row["Nível de risco"]
+    tendencia = row["Tendência"]
 
+    if selo == "Alta qualidade":
+        return "Passou com bom equilíbrio entre score, risco e tendência. Vale estudar com mais atenção."
 
-def formatar_numero(valor):
-    try:
-        return f"US$ {valor:,.0f}"
-    except Exception:
-        return valor
+    if selo == "Boa oportunidade":
+        return "Mostra bons sinais, mas ainda precisa de confirmação com análise externa."
+
+    if selo == "Observar":
+        return "Tem pontos interessantes, mas ainda não está forte o suficiente para destaque."
+
+    if risco == "Alto":
+        return "Apresenta risco elevado pelos critérios do filtro. Exige bastante cautela."
+
+    if tendencia == "Baixa":
+        return "Tendência negativa no momento. Melhor acompanhar antes de considerar."
+
+    return "Não se destacou nos critérios principais do filtro."
 
 
 def calcular_score_avancado(df):
@@ -544,12 +355,183 @@ def calcular_score_avancado(df):
         penalidade_volatilidade
     )
 
-    score = score.clip(lower=0, upper=100).round(2)
-
-    return score
+    return score.clip(lower=0, upper=100).round(2)
 
 
-if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
+def formatar_dolar(valor):
+    try:
+        return f"US$ {valor:,.2f}"
+    except Exception:
+        return valor
+
+
+def formatar_numero(valor):
+    try:
+        return f"US$ {valor:,.0f}"
+    except Exception:
+        return valor
+
+
+def exportar_excel(df_final, df_top, df_risco_alto, df_tendencia_alta):
+    output = BytesIO()
+
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df_final.to_excel(writer, index=False, sheet_name="Resultado completo")
+        df_top.to_excel(writer, index=False, sheet_name="Top oportunidades")
+        df_risco_alto.to_excel(writer, index=False, sheet_name="Risco alto")
+        df_tendencia_alta.to_excel(writer, index=False, sheet_name="Tendência alta")
+
+    return output.getvalue()
+
+
+with st.sidebar:
+    st.header("⚙️ Filtros")
+
+    perfil = st.selectbox(
+        "Modo de perfil",
+        ["Conservador", "Moderado", "Agressivo", "Personalizado"]
+    )
+
+    if perfil == "Conservador":
+        market_cap_padrao = 1_000_000_000
+        volume_padrao = 100_000_000
+        ranking_padrao = 100
+        variacao_min_padrao = -10.0
+        variacao_max_padrao = 15.0
+        score_padrao = 70
+    elif perfil == "Moderado":
+        market_cap_padrao = 300_000_000
+        volume_padrao = 30_000_000
+        ranking_padrao = 200
+        variacao_min_padrao = -20.0
+        variacao_max_padrao = 30.0
+        score_padrao = 50
+    elif perfil == "Agressivo":
+        market_cap_padrao = 50_000_000
+        volume_padrao = 5_000_000
+        ranking_padrao = 500
+        variacao_min_padrao = -40.0
+        variacao_max_padrao = 80.0
+        score_padrao = 30
+    else:
+        market_cap_padrao = 100_000_000
+        volume_padrao = 10_000_000
+        ranking_padrao = 250
+        variacao_min_padrao = -100.0
+        variacao_max_padrao = 100.0
+        score_padrao = 0
+
+    market_cap_min = st.number_input(
+        "Market cap mínimo",
+        min_value=0,
+        value=market_cap_padrao,
+        step=10_000_000
+    )
+
+    volume_min = st.number_input(
+        "Volume 24h mínimo",
+        min_value=0,
+        value=volume_padrao,
+        step=1_000_000
+    )
+
+    ranking_max = st.number_input(
+        "Ranking máximo",
+        min_value=1,
+        value=ranking_padrao,
+        step=10
+    )
+
+    variacao_min = st.number_input(
+        "Variação 24h mínima %",
+        value=variacao_min_padrao,
+        step=1.0
+    )
+
+    variacao_max = st.number_input(
+        "Variação 24h máxima %",
+        value=variacao_max_padrao,
+        step=1.0
+    )
+
+    score_min = st.slider(
+        "Score mínimo",
+        min_value=0,
+        max_value=100,
+        value=score_padrao
+    )
+
+    st.divider()
+
+    busca = st.text_input(
+        "Buscar moeda ou símbolo",
+        placeholder="Ex: BTC, SOL, Ethereum..."
+    )
+
+    filtro_classificacao = st.selectbox(
+        "Classificação",
+        ["Todas", "Excelente", "Boa", "Média", "Fraca"]
+    )
+
+    filtro_risco = st.selectbox(
+        "Nível de risco",
+        ["Todos", "Baixo", "Moderado", "Médio", "Alto"]
+    )
+
+    filtro_tendencia = st.selectbox(
+        "Tendência",
+        ["Todas", "Alta", "Neutra", "Baixa", "Instável"]
+    )
+
+    ordenar_por = st.selectbox(
+        "Ordenar por",
+        [
+            "Score",
+            "Ranking interno",
+            "Ranking",
+            "Market cap",
+            "Volume 24h",
+            "Variação 24h %",
+            "Variação 7d %",
+            "Variação 30d %"
+        ]
+    )
+
+    ordem = st.selectbox(
+        "Ordem",
+        ["Maior para menor", "Menor para maior"]
+    )
+
+    limite_resultados = st.slider(
+        "Quantidade máxima de resultados",
+        min_value=10,
+        max_value=200,
+        value=50,
+        step=10
+    )
+
+    st.divider()
+
+    remover_stablecoins = st.checkbox("Remover stablecoins", value=True)
+    top_oportunidades = st.checkbox("Mostrar apenas Top oportunidades", value=False)
+    limpeza_pesada = st.checkbox("Ativar limpeza pesada", value=False)
+
+    tipo_grafico = st.selectbox(
+        "Gráfico visual",
+        [
+            "Score",
+            "Volume 24h",
+            "Market cap",
+            "Variação 24h %",
+            "Variação 7d %",
+            "Variação 30d %"
+        ]
+    )
+
+    filtrar = st.button("🔎 Filtrar criptomoedas", use_container_width=True)
+
+
+if filtrar:
     data, erro, detalhe = buscar_criptos()
 
     if erro:
@@ -565,37 +547,35 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
             nome = item.get("name")
             simbolo = item.get("symbol")
 
-            market_cap = quote.get("market_cap")
-            volume_24h = quote.get("volume_24h")
-            preco = quote.get("price")
-            variacao_24h = quote.get("percent_change_24h")
-            variacao_7d = quote.get("percent_change_7d")
-            variacao_30d = quote.get("percent_change_30d")
-
             moedas.append(
                 {
                     "Ranking": item.get("rank"),
                     "Moeda": nome,
                     "Símbolo": simbolo,
-                    "Preço": preco,
-                    "Market cap": market_cap,
-                    "Volume 24h": volume_24h,
-                    "Variação 24h %": variacao_24h,
-                    "Variação 7d %": variacao_7d,
-                    "Variação 30d %": variacao_30d,
+                    "Preço": quote.get("price"),
+                    "Market cap": quote.get("market_cap"),
+                    "Volume 24h": quote.get("volume_24h"),
+                    "Variação 24h %": quote.get("percent_change_24h"),
+                    "Variação 7d %": quote.get("percent_change_7d"),
+                    "Variação 30d %": quote.get("percent_change_30d"),
                     "Memecoin": parece_memecoin(nome, simbolo)
                 }
             )
 
         df = pd.DataFrame(moedas)
 
-        df["Ranking"] = pd.to_numeric(df["Ranking"], errors="coerce")
-        df["Market cap"] = pd.to_numeric(df["Market cap"], errors="coerce")
-        df["Volume 24h"] = pd.to_numeric(df["Volume 24h"], errors="coerce")
-        df["Preço"] = pd.to_numeric(df["Preço"], errors="coerce")
-        df["Variação 24h %"] = pd.to_numeric(df["Variação 24h %"], errors="coerce")
-        df["Variação 7d %"] = pd.to_numeric(df["Variação 7d %"], errors="coerce")
-        df["Variação 30d %"] = pd.to_numeric(df["Variação 30d %"], errors="coerce")
+        colunas_numericas = [
+            "Ranking",
+            "Preço",
+            "Market cap",
+            "Volume 24h",
+            "Variação 24h %",
+            "Variação 7d %",
+            "Variação 30d %"
+        ]
+
+        for coluna in colunas_numericas:
+            df[coluna] = pd.to_numeric(df[coluna], errors="coerce")
 
         df["Variação 24h %"] = df["Variação 24h %"].fillna(0)
         df["Variação 7d %"] = df["Variação 7d %"].fillna(0)
@@ -629,7 +609,6 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
 
         if busca.strip() != "":
             busca_normalizada = busca.strip().lower()
-
             df = df[
                 df["Moeda"].str.lower().str.contains(busca_normalizada, na=False) |
                 df["Símbolo"].str.lower().str.contains(busca_normalizada, na=False)
@@ -650,10 +629,11 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
 
             df["Score"] = calcular_score_avancado(df)
             df["Classificação"] = df["Score"].apply(classificar_score)
-            df["Motivo"] = df.apply(gerar_motivo, axis=1)
             df["Alertas de risco"] = df.apply(gerar_alertas_risco, axis=1)
             df["Nível de risco"] = df.apply(nivel_risco, axis=1)
             df["Selo de qualidade"] = df.apply(gerar_selo, axis=1)
+            df["Motivo"] = df.apply(gerar_motivo, axis=1)
+            df["Resumo final"] = df.apply(resumo_final, axis=1)
 
             df = df[df["Score"] >= score_min]
 
@@ -679,6 +659,9 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 st.warning("Nenhuma moeda passou nos filtros escolhidos.")
 
             else:
+                df = df.sort_values(by="Score", ascending=False)
+                df["Ranking interno"] = range(1, len(df) + 1)
+
                 ascendente = True if ordem == "Menor para maior" else False
 
                 df = df.sort_values(
@@ -710,7 +693,6 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 st.markdown('<div class="section-title">Resumo do filtro</div>', unsafe_allow_html=True)
 
                 m1, m2, m3, m4 = st.columns(4)
-
                 m1.metric("Moedas analisadas", total_analisadas)
                 m2.metric("Moedas aprovadas", total_filtradas)
                 m3.metric("Melhor score", melhor_score)
@@ -738,7 +720,6 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
 
                 df_grafico = df.sort_values(by=tipo_grafico, ascending=False).head(10)
                 df_grafico = df_grafico.set_index("Símbolo")
-
                 st.bar_chart(df_grafico[tipo_grafico])
 
                 st.markdown('<div class="section-title">Análise individual</div>', unsafe_allow_html=True)
@@ -751,19 +732,63 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 linha = df[df["Moeda"] == moeda_escolhida].iloc[0]
 
                 a1, a2, a3, a4 = st.columns(4)
-                a1.metric("Símbolo", linha["Símbolo"])
+                a1.metric("Ranking interno", int(linha["Ranking interno"]))
                 a2.metric("Score", linha["Score"])
                 a3.metric("Risco", linha["Nível de risco"])
                 a4.metric("Tendência", linha["Tendência"])
 
-                st.write(f"**Selo de qualidade:** {linha['Selo de qualidade']}")
-                st.write(f"**Motivo:** {linha['Motivo']}")
-                st.write(f"**Alertas:** {linha['Alertas de risco']}")
+                st.markdown(
+                    f"""
+                    <div class="mini-card">
+                    <b>Selo de qualidade:</b> {linha["Selo de qualidade"]}<br>
+                    <b>Motivo:</b> {linha["Motivo"]}<br>
+                    <b>Alertas:</b> {linha["Alertas de risco"]}<br>
+                    <b>Resumo final:</b> {linha["Resumo final"]}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                st.markdown('<div class="section-title">Comparador de moedas</div>', unsafe_allow_html=True)
+
+                moedas_comparar = st.multiselect(
+                    "Selecione até 4 moedas para comparar",
+                    df["Moeda"].tolist(),
+                    default=df.sort_values(by="Score", ascending=False)["Moeda"].head(2).tolist()
+                )
+
+                if len(moedas_comparar) > 0:
+                    df_comparacao = df[df["Moeda"].isin(moedas_comparar)][
+                        [
+                            "Moeda",
+                            "Símbolo",
+                            "Ranking interno",
+                            "Ranking",
+                            "Preço",
+                            "Market cap",
+                            "Volume 24h",
+                            "Variação 24h %",
+                            "Variação 7d %",
+                            "Variação 30d %",
+                            "Score",
+                            "Classificação",
+                            "Tendência",
+                            "Nível de risco",
+                            "Selo de qualidade"
+                        ]
+                    ].copy()
+
+                    st.dataframe(
+                        df_comparacao,
+                        use_container_width=True,
+                        hide_index=True
+                    )
 
                 st.markdown('<div class="section-title">Resultado</div>', unsafe_allow_html=True)
 
                 df_final = df[
                     [
+                        "Ranking interno",
                         "Ranking",
                         "Moeda",
                         "Símbolo",
@@ -779,31 +804,59 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                         "Nível de risco",
                         "Selo de qualidade",
                         "Alertas de risco",
-                        "Motivo"
+                        "Motivo",
+                        "Resumo final"
                     ]
                 ].copy()
 
-                df_final["Preço"] = df_final["Preço"].apply(formatar_dolar)
-                df_final["Market cap"] = df_final["Market cap"].apply(formatar_numero)
-                df_final["Volume 24h"] = df_final["Volume 24h"].apply(formatar_numero)
-                df_final["Variação 24h %"] = df_final["Variação 24h %"].round(2)
-                df_final["Variação 7d %"] = df_final["Variação 7d %"].round(2)
-                df_final["Variação 30d %"] = df_final["Variação 30d %"].round(2)
+                df_top = df_final[df_final["Selo de qualidade"].isin(["Alta qualidade", "Boa oportunidade"])].copy()
+                df_risco_alto = df_final[df_final["Nível de risco"] == "Alto"].copy()
+                df_tendencia_alta = df_final[df_final["Tendência"] == "Alta"].copy()
 
-                df_final = df_final.reset_index(drop=True)
+                df_final_formatado = df_final.copy()
+                df_final_formatado["Preço"] = df_final_formatado["Preço"].apply(formatar_dolar)
+                df_final_formatado["Market cap"] = df_final_formatado["Market cap"].apply(formatar_numero)
+                df_final_formatado["Volume 24h"] = df_final_formatado["Volume 24h"].apply(formatar_numero)
+                df_final_formatado["Variação 24h %"] = df_final_formatado["Variação 24h %"].round(2)
+                df_final_formatado["Variação 7d %"] = df_final_formatado["Variação 7d %"].round(2)
+                df_final_formatado["Variação 30d %"] = df_final_formatado["Variação 30d %"].round(2)
+
+                df_final_formatado = df_final_formatado.reset_index(drop=True)
 
                 st.dataframe(
-                    df_final,
+                    df_final_formatado,
                     use_container_width=True,
                     hide_index=True
                 )
 
-                csv = df_final.to_csv(index=False).encode("utf-8-sig")
+                csv = df_final_formatado.to_csv(index=False).encode("utf-8-sig")
 
-                st.download_button(
-                    label="⬇️ Baixar resultado em CSV",
-                    data=csv,
-                    file_name="resultado_crypto_filter.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
+                col_csv, col_excel = st.columns(2)
+
+                with col_csv:
+                    st.download_button(
+                        label="⬇️ Baixar resultado em CSV",
+                        data=csv,
+                        file_name="resultado_crypto_filter.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+
+                with col_excel:
+                    excel = exportar_excel(
+                        df_final,
+                        df_top,
+                        df_risco_alto,
+                        df_tendencia_alta
+                    )
+
+                    st.download_button(
+                        label="⬇️ Baixar Excel com abas",
+                        data=excel,
+                        file_name="resultado_crypto_filter.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+
+else:
+    st.info("Use os filtros na barra lateral e clique em **Filtrar criptomoedas** para começar.")
