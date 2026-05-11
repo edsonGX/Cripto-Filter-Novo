@@ -313,6 +313,58 @@ def gerar_motivo(row):
     return ", ".join(motivos).capitalize() + "."
 
 
+def gerar_alertas_risco(row):
+    alertas = []
+
+    ranking = row["Ranking"]
+    market_cap = row["Market cap"]
+    volume = row["Volume 24h"]
+    variacao = row["Variação 24h %"]
+    score = row["Score"]
+
+    if ranking > 300:
+        alertas.append("ranking distante")
+
+    if market_cap < 100_000_000:
+        alertas.append("market cap muito baixo")
+    elif market_cap < 300_000_000:
+        alertas.append("market cap menor")
+
+    if volume < 10_000_000:
+        alertas.append("volume baixo")
+    elif volume < 30_000_000:
+        alertas.append("volume moderado")
+
+    if variacao >= 30:
+        alertas.append("alta muito forte em 24h")
+    elif variacao <= -30:
+        alertas.append("queda muito forte em 24h")
+
+    if score < 50:
+        alertas.append("score fraco")
+
+    if len(alertas) == 0:
+        return "Sem alerta grave"
+
+    return ", ".join(alertas).capitalize() + "."
+
+
+def nivel_risco(row):
+    alertas = row["Alertas de risco"]
+
+    if alertas == "Sem alerta grave":
+        return "Baixo"
+
+    quantidade_alertas = alertas.count(",") + 1
+
+    if quantidade_alertas >= 3:
+        return "Alto"
+    elif quantidade_alertas == 2:
+        return "Médio"
+    else:
+        return "Moderado"
+
+
 def formatar_dolar(valor):
     try:
         return f"US$ {valor:,.2f}"
@@ -405,6 +457,8 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
 
             df["Classificação"] = df["Score"].apply(classificar_score)
             df["Motivo"] = df.apply(gerar_motivo, axis=1)
+            df["Alertas de risco"] = df.apply(gerar_alertas_risco, axis=1)
+            df["Nível de risco"] = df.apply(nivel_risco, axis=1)
 
             df = df[df["Score"] >= score_min]
 
@@ -433,6 +487,10 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 medias = len(df[df["Classificação"] == "Média"])
                 fracas = len(df[df["Classificação"] == "Fraca"])
 
+                risco_baixo = len(df[df["Nível de risco"] == "Baixo"])
+                risco_medio = len(df[df["Nível de risco"] == "Médio"])
+                risco_alto = len(df[df["Nível de risco"] == "Alto"])
+
                 st.markdown('<div class="section-title">Resumo do filtro</div>', unsafe_allow_html=True)
 
                 m1, m2, m3, m4 = st.columns(4)
@@ -447,6 +505,11 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                 m6.metric("Boas", boas)
                 m7.metric("Médias", medias)
                 m8.metric("Fracas", fracas)
+
+                r1, r2, r3 = st.columns(3)
+                r1.metric("Risco baixo", risco_baixo)
+                r2.metric("Risco médio", risco_medio)
+                r3.metric("Risco alto", risco_alto)
 
                 st.markdown('<div class="section-title">Gráfico de score</div>', unsafe_allow_html=True)
 
@@ -468,6 +531,8 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
                         "Variação 24h %",
                         "Score",
                         "Classificação",
+                        "Nível de risco",
+                        "Alertas de risco",
                         "Motivo"
                     ]
                 ].copy()
