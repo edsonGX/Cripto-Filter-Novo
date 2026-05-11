@@ -14,6 +14,7 @@ st.set_page_config(
 
 WATCHLIST_FILE = "watchlist.csv"
 HISTORICO_FILE = "historico_buscas.csv"
+HISTORICO_MOEDAS_FILE = "historico_moedas.csv"
 
 st.markdown(
     """
@@ -61,7 +62,7 @@ st.markdown(
 st.markdown('<div class="main-title">📊 Crypto Filter Pro</div>', unsafe_allow_html=True)
 
 st.markdown(
-    '<div class="subtitle">Scanner de criptomoedas com score avançado, risco, tendência, comparador, watchlist, histórico e exportação.</div>',
+    '<div class="subtitle">Scanner de criptomoedas com score avançado, risco, tendência, watchlist, histórico e monitoramento.</div>',
     unsafe_allow_html=True
 )
 
@@ -500,7 +501,46 @@ def salvar_historico(nova_linha):
     df_historico.to_csv(HISTORICO_FILE, index=False, encoding="utf-8-sig")
 
 
-def exportar_excel(df_final, df_top, df_risco_alto, df_tendencia_alta, df_watchlist, df_historico):
+def carregar_historico_moedas():
+    colunas = [
+        "Data da busca",
+        "Perfil",
+        "Ranking interno",
+        "Ranking",
+        "Moeda",
+        "Símbolo",
+        "Preço",
+        "Market cap",
+        "Volume 24h",
+        "Variação 24h %",
+        "Variação 7d %",
+        "Variação 30d %",
+        "Score",
+        "Classificação",
+        "Tendência",
+        "Nível de risco",
+        "Selo de qualidade",
+        "Alertas de risco",
+        "Motivo",
+        "Resumo final"
+    ]
+
+    if os.path.exists(HISTORICO_MOEDAS_FILE):
+        try:
+            return pd.read_csv(HISTORICO_MOEDAS_FILE)
+        except Exception:
+            return pd.DataFrame(columns=colunas)
+
+    return pd.DataFrame(columns=colunas)
+
+
+def salvar_historico_moedas(df_moedas):
+    df_historico_moedas = carregar_historico_moedas()
+    df_historico_moedas = pd.concat([df_historico_moedas, df_moedas], ignore_index=True)
+    df_historico_moedas.to_csv(HISTORICO_MOEDAS_FILE, index=False, encoding="utf-8-sig")
+
+
+def exportar_excel(df_final, df_top, df_risco_alto, df_tendencia_alta, df_watchlist, df_historico, df_historico_moedas):
     output = BytesIO()
 
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -514,6 +554,9 @@ def exportar_excel(df_final, df_top, df_risco_alto, df_tendencia_alta, df_watchl
 
         if not df_historico.empty:
             df_historico.to_excel(writer, index=False, sheet_name="Histórico")
+
+        if not df_historico_moedas.empty:
+            df_historico_moedas.to_excel(writer, index=False, sheet_name="Histórico moedas")
 
     return output.getvalue()
 
@@ -806,6 +849,8 @@ if filtrar:
 
                 df = df.head(limite_resultados)
 
+                data_busca = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
                 total_filtradas = len(df)
                 melhor_score = df["Score"].max()
                 melhor_moeda = df.sort_values(by="Score", ascending=False).iloc[0]["Moeda"]
@@ -827,7 +872,7 @@ if filtrar:
 
                 salvar_historico(
                     {
-                        "Data da busca": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "Data da busca": data_busca,
                         "Perfil": perfil,
                         "Moedas analisadas": total_analisadas,
                         "Moedas aprovadas": total_filtradas,
@@ -847,6 +892,11 @@ if filtrar:
                         "Tendência instável": tendencia_instavel
                     }
                 )
+
+                df_historico_moedas_novo = preparar_df_final(df)
+                df_historico_moedas_novo.insert(0, "Perfil", perfil)
+                df_historico_moedas_novo.insert(0, "Data da busca", data_busca)
+                salvar_historico_moedas(df_historico_moedas_novo)
 
         st.session_state["df_resultado"] = df
         st.session_state["total_analisadas"] = total_analisadas
@@ -1088,6 +1138,9 @@ else:
         st.markdown('<div class="section-title">🕒 Histórico de buscas</div>', unsafe_allow_html=True)
 
         df_historico = carregar_historico()
+        df_historico_moedas = carregar_historico_moedas()
+
+        st.subheader("Resumo das buscas")
 
         if df_historico.empty:
             st.info("Ainda não há histórico de buscas salvo.")
@@ -1101,17 +1154,48 @@ else:
             historico_csv = df_historico.to_csv(index=False).encode("utf-8-sig")
 
             st.download_button(
-                label="⬇️ Baixar histórico em CSV",
+                label="⬇️ Baixar histórico resumido em CSV",
                 data=historico_csv,
                 file_name="historico_crypto_filter.csv",
                 mime="text/csv",
                 use_container_width=True
             )
 
-            if st.button("🗑️ Limpar histórico", use_container_width=True):
-                df_vazio = pd.DataFrame(columns=df_historico.columns)
-                df_vazio.to_csv(HISTORICO_FILE, index=False, encoding="utf-8-sig")
-                st.success("Histórico limpo.")
+        st.subheader("Histórico detalhado de moedas")
+
+        if df_historico_moedas.empty:
+            st.info("Ainda não há histórico detalhado de moedas.")
+        else:
+            st.dataframe(
+                df_historico_moedas.sort_values(by="Data da busca", ascending=False),
+                use_container_width=True,
+                hide_index=True
+            )
+
+            historico_moedas_csv = df_historico_moedas.to_csv(index=False).encode("utf-8-sig")
+
+            st.download_button(
+                label="⬇️ Baixar histórico de moedas em CSV",
+                data=historico_moedas_csv,
+                file_name="historico_moedas_crypto_filter.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+
+        if st.button("🗑️ Limpar todo o histórico", use_container_width=True):
+            pd.DataFrame(columns=carregar_historico().columns).to_csv(
+                HISTORICO_FILE,
+                index=False,
+                encoding="utf-8-sig"
+            )
+
+            pd.DataFrame(columns=carregar_historico_moedas().columns).to_csv(
+                HISTORICO_MOEDAS_FILE,
+                index=False,
+                encoding="utf-8-sig"
+            )
+
+            st.success("Histórico resumido e detalhado foram limpos.")
 
     with tab_exportacao:
         st.markdown('<div class="section-title">Exportação</div>', unsafe_allow_html=True)
@@ -1121,6 +1205,7 @@ else:
         df_tendencia_alta = df_final[df_final["Tendência"] == "Alta"].copy()
         df_watchlist = carregar_watchlist()
         df_historico = carregar_historico()
+        df_historico_moedas = carregar_historico_moedas()
 
         csv = df_final_formatado.to_csv(index=False).encode("utf-8-sig")
 
@@ -1142,7 +1227,8 @@ else:
                 df_risco_alto,
                 df_tendencia_alta,
                 df_watchlist,
-                df_historico
+                df_historico,
+                df_historico_moedas
             )
 
             st.download_button(
@@ -1159,4 +1245,5 @@ else:
         st.write("- Risco alto")
         st.write("- Tendência alta")
         st.write("- Watchlist, se houver moedas salvas")
-        st.write("- Histórico, se houver buscas salvas")
+        st.write("- Histórico resumido, se houver buscas salvas")
+        st.write("- Histórico detalhado de moedas, se houver buscas salvas")
