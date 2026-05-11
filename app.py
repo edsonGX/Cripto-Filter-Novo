@@ -80,12 +80,44 @@ with col2:
     )
 
 with col3:
+    ranking_max = st.number_input(
+        "Ranking máximo",
+        min_value=1,
+        value=250,
+        step=10
+    )
+
+col4, col5, col6 = st.columns(3)
+
+with col4:
+    variacao_min = st.number_input(
+        "Variação 24h mínima %",
+        value=-100.0,
+        step=1.0
+    )
+
+with col5:
+    variacao_max = st.number_input(
+        "Variação 24h máxima %",
+        value=100.0,
+        step=1.0
+    )
+
+with col6:
     score_min = st.slider(
         "Score mínimo",
         min_value=0,
         max_value=100,
         value=0
     )
+
+limite_resultados = st.slider(
+    "Quantidade máxima de resultados",
+    min_value=10,
+    max_value=200,
+    value=50,
+    step=10
+)
 
 meme_terms = [
     "doge", "shib", "pepe", "inu", "floki", "bonk",
@@ -184,11 +216,14 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
 
         total_analisadas = len(df)
 
-        df = df[
-            (df["Market cap"] >= market_cap_min) &
-            (df["Volume 24h"] >= volume_min) &
-            (df["Memecoin"] == False)
-        ]
+df = df[
+    (df["Market cap"] >= market_cap_min) &
+    (df["Volume 24h"] >= volume_min) &
+    (df["Ranking"] <= ranking_max) &
+    (df["Variação 24h %"] >= variacao_min) &
+    (df["Variação 24h %"] <= variacao_max) &
+    (df["Memecoin"] == False)
+]        
 
         if df.empty:
             st.warning("Nenhuma moeda passou nos filtros escolhidos.")
@@ -201,6 +236,7 @@ if st.button("🔎 Filtrar criptomoedas", use_container_width=True):
 
             df = df[df["Score"] >= score_min]
             df = df.sort_values(by="Score", ascending=False)
+            df = df.head(limite_resultados)
 
             total_filtradas = len(df)
             melhor_score = df["Score"].max()
