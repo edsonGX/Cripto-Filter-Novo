@@ -1367,7 +1367,132 @@ df = st.session_state["df_resultado"]
 total_analisadas = st.session_state["total_analisadas"]
 
 if df.empty:
-    st.info("Use os filtros na barra lateral e clique em **Filtrar criptomoedas** para começar.")
+    st.markdown(
+        """
+        <div class="section-title">🚀 Comece sua análise</div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    col_inicio_1, col_inicio_2, col_inicio_3 = st.columns(3)
+
+    with col_inicio_1:
+        st.markdown(
+            """
+            <div class="mini-card">
+                <h3>🔎 1. Ajuste os filtros</h3>
+                <p>
+                Use a barra lateral para escolher perfil, market cap, volume,
+                ranking máximo, score mínimo e tipo de risco.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col_inicio_2:
+        st.markdown(
+            """
+            <div class="mini-card">
+                <h3>📊 2. Filtre as moedas</h3>
+                <p>
+                Clique em <b>Filtrar criptomoedas</b> para buscar moedas que
+                passam nos critérios definidos.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col_inicio_3:
+        st.markdown(
+            """
+            <div class="mini-card">
+                <h3>🧠 3. Estude os resultados</h3>
+                <p>
+                Analise score, risco, tendência, histórico, monitoramento
+                e comparação entre moedas.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown(
+        """
+        <div class="section-title">📌 Como interpretar os indicadores</div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    col_info_1, col_info_2, col_info_3, col_info_4 = st.columns(4)
+
+    with col_info_1:
+        st.markdown(
+            """
+            <div class="mini-card">
+                <h4>⭐ Score</h4>
+                <p>
+                Mede a força geral da moeda considerando market cap, volume,
+                ranking, variações e tendência.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col_info_2:
+        st.markdown(
+            """
+            <div class="mini-card">
+                <h4>⚠️ Risco</h4>
+                <p>
+                Indica possíveis sinais de alerta, como baixa liquidez,
+                ranking distante ou volatilidade elevada.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col_info_3:
+        st.markdown(
+            """
+            <div class="mini-card">
+                <h4>📈 Tendência</h4>
+                <p>
+                Resume o comportamento recente da moeda usando variações
+                de 24h, 7 dias e 30 dias.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col_info_4:
+        st.markdown(
+            """
+            <div class="mini-card">
+                <h4>🕒 Histórico</h4>
+                <p>
+                Salva buscas anteriores no Supabase para acompanhar moedas
+                recorrentes e evolução dos resultados.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown(
+        """
+        <div class="info-box">
+            Dica: comece com o perfil <b>Conservador</b> para resultados mais fortes.
+            Depois teste <b>Moderado</b> ou <b>Agressivo</b> para encontrar mais oportunidades.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 else:
     df_final = preparar_df_final(df)
     df_final_formatado = formatar_df_visual(df_final)
