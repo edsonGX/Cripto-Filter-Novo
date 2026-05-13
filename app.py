@@ -1153,6 +1153,7 @@ with st.sidebar:
     remover_stablecoins = st.checkbox("Remover stablecoins", value=True)
     top_oportunidades = st.checkbox("Mostrar apenas Top oportunidades", value=False)
     limpeza_pesada = st.checkbox("Ativar limpeza pesada", value=False)
+    salvar_busca_historico = st.checkbox("Salvar esta busca no histórico", value=True)
 
     tipo_grafico = st.selectbox(
         "Gráfico visual",
@@ -1331,36 +1332,52 @@ if filtrar:
                 tendencia_baixa = len(df[df["Tendência"] == "Baixa"])
                 tendencia_instavel = len(df[df["Tendência"] == "Instável"])
 
-                salvar_historico(
-                    {
-                        "Data da busca": data_busca,
-                        "Perfil": perfil,
-                        "Moedas analisadas": total_analisadas,
-                        "Moedas aprovadas": total_filtradas,
-                        "Melhor moeda": melhor_moeda,
-                        "Melhor score": melhor_score,
-                        "Excelentes": excelentes,
-                        "Boas": boas,
-                        "Médias": medias,
-                        "Fracas": fracas,
-                        "Risco baixo": risco_baixo,
-                        "Risco moderado": risco_moderado,
-                        "Risco médio": risco_medio,
-                        "Risco alto": risco_alto,
-                        "Tendência alta": tendencia_alta,
-                        "Tendência neutra": tendencia_neutra,
-                        "Tendência baixa": tendencia_baixa,
-                        "Tendência instável": tendencia_instavel
-                    }
-                )
+    if salvar_busca_historico:
+            salvar_historico(
+        {
+            "Data da busca": data_busca,
+            "Perfil": perfil,
+            "Moedas analisadas": total_analisadas,
+            "Moedas aprovadas": total_filtradas,
+            "Melhor moeda": melhor_moeda,
+            "Melhor score": melhor_score,
+            "Excelentes": excelentes,
+            "Boas": boas,
+            "Médias": medias,
+            "Fracas": fracas,
+            "Risco baixo": risco_baixo,
+            "Risco moderado": risco_moderado,
+            "Risco médio": risco_medio,
+            "Risco alto": risco_alto,
+            "Tendência alta": tendencia_alta,
+            "Tendência neutra": tendencia_neutra,
+            "Tendência baixa": tendencia_baixa,
+            "Tendência instável": tendencia_instavel
+        }
+    )
 
-                df_historico_moedas_novo = preparar_df_final(df)
-                df_historico_moedas_novo.insert(0, "Perfil", perfil)
-                df_historico_moedas_novo.insert(0, "Data da busca", data_busca)
-                salvar_historico_moedas(df_historico_moedas_novo)
+    df_historico_moedas_novo = preparar_df_final(df)
+    df_historico_moedas_novo.insert(0, "Perfil", perfil)
+    df_historico_moedas_novo.insert(0, "Data da busca", data_busca)
+    salvar_historico_moedas(df_historico_moedas_novo)
 
-        st.session_state["df_resultado"] = df
-        st.session_state["total_analisadas"] = total_analisadas
+    df_historico_moedas_novo = preparar_df_final(df)
+    df_historico_moedas_novo.insert(0, "Perfil", perfil)
+    df_historico_moedas_novo.insert(0, "Data da busca", data_busca)
+    salvar_historico_moedas(df_historico_moedas_novo)
+
+    df_historico_moedas_novo = preparar_df_final(df)
+    df_historico_moedas_novo.insert(0, "Perfil", perfil)
+    df_historico_moedas_novo.insert(0, "Data da busca", data_busca)
+    salvar_historico_moedas(df_historico_moedas_novo)
+
+    df_historico_moedas_novo = preparar_df_final(df)
+    df_historico_moedas_novo.insert(0, "Perfil", perfil)
+    df_historico_moedas_novo.insert(0, "Data da busca", data_busca)
+    salvar_historico_moedas(df_historico_moedas_novo)
+
+    st.session_state["df_resultado"] = df
+    st.session_state["total_analisadas"] = total_analisadas
 
 
 df = st.session_state["df_resultado"]
